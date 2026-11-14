@@ -1,4 +1,5 @@
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const INT4_MAX = 2147483647;
 
 function vacio(valor) {
   return (
@@ -8,22 +9,35 @@ function vacio(valor) {
   );
 }
 
-/**
- * Middleware de validacion
- *
- * Reglas
+function esNumero(valor) {
+  return (
+    (typeof valor === 'number' || typeof valor === 'string') &&
+    Number.isFinite(Number(valor))
+  );
+}
+
+
+// validación del body
+
+/* Reglas por campo:
  * - requerido: boolean
  * - tipo: 'string' | 'email' | 'numero' | 'boolean' | 'array'
- * - min / max: longitud mínima/máxima para strings
+ * - min / max: longitud mínima/máxima
  * - minNumero / maxNumero
  * - entero: boolean
  * - enum: array de valores permitidos
  * - regex: RegExp
  * - mensaje: mensaje personalizado
  */
+ // Los campos opcionales enviados vacíos ("") quedan como null en req.body, así no rompen CHECK ni UNIQUE en la base (ej. dni = '').
+ //Los strings se recortan (trim), excepto "password".
+
 export function validar(reglas) {
   return (req, res, next) => {
-    const body = req.body ?? {};
+    const body =
+      req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+        ? req.body
+        : {};
     const errores = [];
 
     for (const [campo, regla] of Object.entries(reglas)) {
@@ -37,6 +51,8 @@ export function validar(reglas) {
       if (vacio(valor)) {
         if (regla.requerido) {
           errores.push(regla.mensaje ?? `El campo "${campo}" es obligatorio`);
+        } else if (valor !== undefined) {
+          body[campo] = null; // "" -> null
         }
         continue;
       }
@@ -51,7 +67,7 @@ export function validar(reglas) {
         continue;
       }
 
-      if (regla.tipo === 'numero' && !Number.isFinite(Number(valor))) {
+      if (regla.tipo === 'numero' && !esNumero(valor)) {
         errores.push(`El campo "${campo}" debe ser numérico`);
         continue;
       }
@@ -66,7 +82,7 @@ export function validar(reglas) {
         continue;
       }
 
-      if (regla.entero && !Number.isInteger(Number(valor))) {
+      if (regla.entero && !(esNumero(valor) && Number.isInteger(Number(valor)))) {
         errores.push(`El campo "${campo}" debe ser un número entero`);
         continue;
       }
@@ -86,12 +102,16 @@ export function validar(reglas) {
       }
 
       if (regla.minNumero !== undefined && Number(valor) < regla.minNumero) {
-        errores.push(`El campo "${campo}" debe ser mayor o igual a ${regla.minNumero}`);
+        errores.push(
+          `El campo "${campo}" debe ser mayor o igual a ${regla.minNumero}`,
+        );
         continue;
       }
 
       if (regla.maxNumero !== undefined && Number(valor) > regla.maxNumero) {
-        errores.push(`El campo "${campo}" debe ser menor o igual a ${regla.maxNumero}`);
+        errores.push(
+          `El campo "${campo}" debe ser menor o igual a ${regla.maxNumero}`,
+        );
         continue;
       }
 
@@ -103,7 +123,9 @@ export function validar(reglas) {
       }
 
       if (regla.regex && !regla.regex.test(String(valor))) {
-        errores.push(regla.mensaje ?? `El campo "${campo}" tiene un formato inválido`);
+        errores.push(
+          regla.mensaje ?? `El campo "${campo}" tiene un formato inválido`,
+        );
       }
     }
 
@@ -112,6 +134,27 @@ export function validar(reglas) {
     }
 
     req.body = body;
+    next();
+  };
+}
+
+// Valida que los parámetros de ruta sean enteros positivos que entren en un
+//INTEGER de Postgres (evita el error 22003 / 500 con ids gigantes)
+
+export function validarId(...params) {
+  const nombres = params.length > 0 ? params : ['id'];
+
+  return (req, res, next) => {
+    for (const nombre of nombres) {
+      const valor = req.params[nombre];
+      if (
+        !/^\d+$/.test(valor ?? '') ||
+        Number(valor) < 1 ||
+        Number(valor) > INT4_MAX
+      ) {
+        return res.status(400).json({ error: `El parámetro "${nombre}" es inválido` });
+      }
+    }
     next();
   };
 }

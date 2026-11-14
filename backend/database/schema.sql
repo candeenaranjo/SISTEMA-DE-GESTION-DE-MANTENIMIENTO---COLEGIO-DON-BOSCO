@@ -85,7 +85,7 @@ CREATE TABLE personal_externo (
   id_personal INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL,
   apellido VARCHAR(100) NOT NULL,
-  dni VARCHAR(10) UNIQUE,
+  dni VARCHAR(10) NOT NULL UNIQUE,
   email VARCHAR(100),
   telefono VARCHAR(25) NOT NULL,
   id_especialidad INTEGER NOT NULL REFERENCES especialidades(id_especialidad),
@@ -114,10 +114,7 @@ CREATE TABLE requerimientos (
     CHECK (estado IN (
       'pendiente',
       'asignado',
-      'en-proceso',
-      'finalizada',
-      'rechazada',
-      'cancelada'
+      'resuelto'
     )),
   activo BOOLEAN NOT NULL DEFAULT TRUE,
   fecha_emision TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -174,6 +171,8 @@ CREATE INDEX tareas_estado_idx ON tareas (estado);
 CREATE INDEX tareas_responsable_idx ON tareas (id_responsable);
 CREATE INDEX tareas_personal_idx ON tareas (id_personal_externo);
 CREATE INDEX tareas_fecha_creacion_idx ON tareas (fecha_creacion);
+CREATE UNIQUE INDEX tareas_una_viva_por_requerimiento_idx
+  ON tareas (id_requerimiento) WHERE estado <> 'cancelada';
 
 -- ------------------------------------------------------------
 -- Historial de auditoría
