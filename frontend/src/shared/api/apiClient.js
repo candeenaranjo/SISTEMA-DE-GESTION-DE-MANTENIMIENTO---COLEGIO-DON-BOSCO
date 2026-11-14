@@ -1,6 +1,8 @@
 const API_URL =
   import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
 
+const CLAVE_SESION = 'sesion';
+
 export class ApiError extends Error {
   constructor(message, status, detalles = null) {
     super(message);
@@ -10,9 +12,31 @@ export class ApiError extends Error {
   }
 }
 
+function leerToken() {
+  try {
+    return JSON.parse(sessionStorage.getItem(CLAVE_SESION))?.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function armarQuery(query) {
+  const params = new URLSearchParams();
+  for (const [clave, valor] of Object.entries(query ?? {})) {
+    if (valor !== undefined && valor !== null && valor !== '') {
+      params.set(clave, String(valor));
+    }
+  }
+  const texto = params.toString();
+  return texto ? `?${texto}` : '';
+}
+
+//Hace la petición al backend. Adjunta el token de la sesión automáticamente
+//Si el backend responde 401 con una sesión abierta (token vencido o cuenta dada de baja), limpia la sesión y manda al login
+
 export async function apiRequest(
   path,
-  { method = 'GET', body, token, signal } = {},
+  { method = 'GET', body, query, token = leerToken(), signal } = {},
 ) {
   const headers = {};
 
@@ -27,7 +51,7 @@ export async function apiRequest(
   let response;
 
   try {
-    response = await fetch(`${API_URL}${path}`, {
+    response = await fetch(`${API_URL}${path}${armarQuery(query)}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -54,6 +78,11 @@ export async function apiRequest(
   }
 
   if (!response.ok) {
+    if (response.status === 401 && token && path !== '/auth/login') {
+      sessionStorage.removeItem(CLAVE_SESION);
+      window.location.assign('/login');
+    }
+
     const mensaje =
       (data && typeof data === 'object' && data.error) ||
       'Error al comunicarse con el servidor';

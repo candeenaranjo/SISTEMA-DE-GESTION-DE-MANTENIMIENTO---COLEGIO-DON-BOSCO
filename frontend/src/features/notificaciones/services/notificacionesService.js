@@ -1,4 +1,4 @@
-import data from '@data/notificaciones.json';
+
 
 // que tipos de notificacion ve cada rol
 const TIPOS_POR_ROL = {

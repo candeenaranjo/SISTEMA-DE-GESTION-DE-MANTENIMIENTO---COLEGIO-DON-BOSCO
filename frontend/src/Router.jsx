@@ -6,10 +6,10 @@ import LayoutGestor from "./shared/layout/gestor/LayoutGestor";
 import AccesoDenegadoPage from "./shared/pages/AccesoDenegadoPage";
 //publico
 import { HomePage } from "./features/home";
-import { LoginPage, RegistroPage } from "./features/auth";
+import { LoginPage } from "./features/auth";
 import { ContactoPage } from "./features/contacto";
 import {
-  protegerRuta,
+  cargarSesion,
   requerirRol,
 } from "./features/auth/services/authService";
 //panel segun rol
@@ -62,16 +62,11 @@ export const router = createBrowserRouter([
     element: <LoginPage />,
   },
 
-  {
-    path: "/registro",
-    element: <RegistroPage />,
-  },
-
   // privado
   {
     path: "/gestor",
     element: <LayoutGestor />,
-    loader: protegerRuta,
+    loader: cargarSesion,
     errorElement: <AccesoDenegadoPage />,
     children: [
       { index: true, element: <PanelInicioPage /> },
@@ -152,7 +147,7 @@ export const router = createBrowserRouter([
         loader: requerirRol(["directivo"]),
       },
       {
-        path: "usuarios/:clave",
+        path: "usuarios/:id",
         element: <EditarUsuarioPage />,
         loader: requerirRol(["directivo"]),
       },

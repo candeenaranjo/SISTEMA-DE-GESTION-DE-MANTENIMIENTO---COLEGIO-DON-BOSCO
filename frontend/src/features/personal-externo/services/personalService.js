@@ -1,4 +1,3 @@
-import dataInicial from '@data/personalExterno.json';
 import { leer, guardar } from '../../../shared/utils/storage';
 
 const CLAVE = 'personalExterno';

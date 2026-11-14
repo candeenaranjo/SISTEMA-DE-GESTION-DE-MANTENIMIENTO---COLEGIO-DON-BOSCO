@@ -1,7 +1,4 @@
-import dataInicial from '@data/tareas.json';
-import requerimientos from '@data/requerimientos.json';
-import ordenanzasData from '@data/ordenanzas.json';
-import personalExternoData from '@data/personalExterno.json';
+
 import { leer, guardar } from '../../../shared/utils/storage';
 
 const CLAVE = 'tareas';

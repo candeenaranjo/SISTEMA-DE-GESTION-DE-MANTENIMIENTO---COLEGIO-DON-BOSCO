@@ -42,7 +42,7 @@ function TablaUsuarios({ usuarios, onEditar }) {
             </tr>
           )}
           {usuarios.map((u) => (
-            <tr key={u.clave}>
+            <tr key={u.id}>
               <td>
                 <div className="d-flex align-items-center gap-2">
                   <span

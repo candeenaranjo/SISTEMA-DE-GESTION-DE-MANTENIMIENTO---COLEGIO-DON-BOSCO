@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { FaUsers, FaUser, FaUserTie, FaScrewdriverWrench, FaMagnifyingGlass, FaPlus, FaFilterCircleXmark } from 'react-icons/fa6';
+import { FaUsers, FaUser, FaUserTie, FaScrewdriverWrench, FaPlus } from 'react-icons/fa6';
 import EncabezadoPagina from '../../../shared/components/EncabezadoPagina';
 import TarjetaResumen from '../../../shared/components/TarjetaResumen';
 import SeccionCard from '../../../shared/components/SeccionCard';
@@ -20,11 +20,25 @@ function UsuariosPage() {
   const location = useLocation();
 
   const [usuarios, setUsuarios] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
   const [filtros, setFiltros] = useState(FILTROS_VACIOS);
   const [pagina, setPagina] = useState(1);
 
   useEffect(() => {
-    obtenerUsuarios().then(setUsuarios);
+    let activo = true;
+    setCargando(true);
+    setError('');
+
+    obtenerUsuarios()
+      .then((datos) => activo && setUsuarios(datos))
+      .catch((err) => activo && setError(err.message))
+      .finally(() => activo && setCargando(false));
+
+    // Evita actualizar el estado si la pantalla se desmontó
+    return () => {
+      activo = false;
+    };
   }, [location.key]);
 
   const cantidad = (rol) => usuarios.filter((u) => u.rol === rol).length;
@@ -58,7 +72,7 @@ function UsuariosPage() {
   };
 
   const handleEditar = (usuario) => {
-    navigate(`/gestor/usuarios/${usuario.clave}`);
+    navigate(`/gestor/usuarios/${usuario.id}`);
   };
 
   return (
@@ -72,6 +86,12 @@ function UsuariosPage() {
           <FaPlus /> Agregar usuario
         </button>
       </EncabezadoPagina>
+
+      {error && (
+        <div className="alert alert-danger mb-3" role="alert">
+          {error}
+        </div>
+      )}
 
       <div className="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3 mb-4">
         <div className="col"><TarjetaResumen tono="cancelada" icono={FaUsers} etiqueta="Total de usuarios" valor={usuarios.length} /></div>
@@ -113,7 +133,11 @@ function UsuariosPage() {
           ]}
         />
 
-        <TablaUsuarios usuarios={visibles} onEditar={handleEditar} />
+        {cargando ? (
+          <p className="text-center text-secondary py-4 mb-0">Cargando usuarios…</p>
+        ) : (
+          <TablaUsuarios usuarios={visibles} onEditar={handleEditar} />
+        )}
 
         <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
           <small className="text-secondary">

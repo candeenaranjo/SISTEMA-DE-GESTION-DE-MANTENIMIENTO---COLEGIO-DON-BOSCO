@@ -28,7 +28,7 @@ function iniciales(nombre, apellido) {
       <EncabezadoPagina
         icono={FaUser}
         titulo="Perfil del Usuario"
-        subtitulo="Completá los Visualizá y gestioná la información de tu perfil"
+        subtitulo="Visualizá y gestioná la información de tu perfil"
       />
 
       <div className="card border-0 shadow-sm mb-3">

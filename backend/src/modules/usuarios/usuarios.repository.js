@@ -10,6 +10,9 @@ const SELECT_USUARIO = `
   LEFT JOIN cargos c ON c.id_cargo = u.id_cargo
 `;
 
+
+//activo: undefined -> solo activos | true/false -> filtra | null -> todos
+
 export async function listar({ rol, activo, busqueda } = {}) {
   const condiciones = [];
   const valores = [];
@@ -19,15 +22,16 @@ export async function listar({ rol, activo, busqueda } = {}) {
     condiciones.push(`r.nombre = $${valores.length}`);
   }
 
-  if (activo !== undefined) {
+  if (activo === undefined) {
+    condiciones.push('u.activo = TRUE');
+  } else if (activo !== null) {
     valores.push(activo);
     condiciones.push(`u.activo = $${valores.length}`);
-  } else {
-    condiciones.push(`u.activo = TRUE`);
   }
 
   if (busqueda) {
-    valores.push(`%${busqueda}%`);
+    // Escapa % y _ para que se busquen como texto literal
+    valores.push(`%${String(busqueda).replace(/[\\%_]/g, '\\$&')}%`);
     const i = valores.length;
     condiciones.push(
       `(u.nombre ILIKE $${i} OR u.apellido ILIKE $${i} OR u.nombre_usuario ILIKE $${i} OR u.email ILIKE $${i})`,
@@ -52,6 +56,8 @@ export async function obtenerPorId(id) {
   return rows[0] ?? null;
 }
 
+// Los duplicados (usuario, email, DNI) los frena la base con UNIQUE
+// y el errorHandler los traduce a un 409 con mensaje específico.
 export async function crear(datos) {
   const { rows } = await pool.query(
     `INSERT INTO usuarios (
@@ -80,19 +86,19 @@ export async function crear(datos) {
 export async function actualizar(id, datos) {
   const { rows } = await pool.query(
     `UPDATE usuarios
-     SET nombre_usuario = $1,
-         nombre = $2,
-         apellido = $3,
-         dni = $4,
-         email = $5,
-         password_hash = $6,
-         id_rol = $7,
-         telefono = $8,
-         id_cargo = $9,
-         avatar = $10,
-         activo = $11
-     WHERE id_usuario = $12
-     RETURNING id_usuario`,
+        SET nombre_usuario = $1,
+            nombre = $2,
+            apellido = $3,
+            dni = $4,
+            email = $5,
+            password_hash = $6,
+            id_rol = $7,
+            telefono = $8,
+            id_cargo = $9,
+            avatar = $10,
+            activo = $11
+      WHERE id_usuario = $12
+      RETURNING id_usuario`,
     [
       datos.nombreUsuario,
       datos.nombre,
@@ -121,28 +127,6 @@ export async function desactivar(id) {
   return rowCount > 0;
 }
 
-export async function existeConflicto({
-  nombreUsuario,
-  email,
-  dni,
-  excluirId = null,
-}) {
-  const { rows } = await pool.query(
-    `SELECT id_usuario
-     FROM usuarios
-     WHERE (
-       LOWER(nombre_usuario) = LOWER($1)
-       OR LOWER(email) = LOWER($2)
-       OR ($3::text IS NOT NULL AND dni = $3::text)
-     )
-     AND ($4::int IS NULL OR id_usuario <> $4::int)
-     LIMIT 1`,
-    [nombreUsuario, email, dni, excluirId],
-  );
-
-  return rows[0] ?? null;
-}
-
 export async function obtenerIdRol(nombre) {
   const { rows } = await pool.query(
     'SELECT id_rol FROM roles WHERE nombre = $1',
@@ -161,14 +145,22 @@ export async function obtenerIdCargo(nombre) {
   return rows[0] ?? null;
 }
 
+export async function listarCargos() {
+  const { rows } = await pool.query(
+    'SELECT id_cargo AS id, nombre FROM cargos ORDER BY nombre',
+  );
+
+  return rows;
+}
+
 export async function contarDirectivosActivos(excluirId = null) {
   const { rows } = await pool.query(
     `SELECT COUNT(*)::int AS total
-     FROM usuarios u
-     JOIN roles r ON r.id_rol = u.id_rol
-     WHERE r.nombre = 'directivo'
-       AND u.activo = TRUE
-       AND ($1::int IS NULL OR u.id_usuario <> $1::int)`,
+       FROM usuarios u
+       JOIN roles r ON r.id_rol = u.id_rol
+      WHERE r.nombre = 'directivo'
+        AND u.activo = TRUE
+        AND ($1::int IS NULL OR u.id_usuario <> $1::int)`,
     [excluirId],
   );
 
