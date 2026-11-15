@@ -1,7 +1,7 @@
 
 .login-page {
   min-height: 100vh;
-  background: url('/assets/colegio/foto4.PNG') no-repeat center center fixed;
+  background: url('/assets/colegio/foto4.jpg') no-repeat center center fixed;
   background-size: cover;
   position: relative;
 }
