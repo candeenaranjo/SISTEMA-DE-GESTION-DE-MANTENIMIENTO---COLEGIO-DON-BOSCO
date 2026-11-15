@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { FaClipboardList, FaCircleCheck, FaCircleXmark, } from 'react-icons/fa6';
 import './ItemNotificacion.css';
+import { formatearFecha } from '../utils/formatos';
 
 const CONFIG_POR_TIPO = {
   // jefe de Mantenimiento
@@ -19,9 +20,8 @@ function ItemNotificacion({ notificacion, to }) {
 
   const contenido = (
     <div
-      className={`item-notificacion ${
-        !notificacion.leida ? 'item-notificacion--no-leida' : ''
-      }`}
+      className={`item-notificacion ${!notificacion.leida ? 'item-notificacion--no-leida' : ''
+        }`}
     >
       {/* punto azul si no esta leida */}
       {!notificacion.leida && <span className="item-notificacion__punto" />}
@@ -44,7 +44,7 @@ function ItemNotificacion({ notificacion, to }) {
               {notificacion.texto}
             </p>
             <small className="item-notificacion__fecha">
-              {notificacion.fecha}, {notificacion.hora}
+              {formatearFecha(notificacion.fecha)}, {notificacion.hora}
             </small>
           </div>
         </div>

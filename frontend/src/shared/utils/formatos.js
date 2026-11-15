@@ -25,3 +25,14 @@ export function aFechaInput(valor) {
   const dos = (n) => String(n).padStart(2, '0');
   return `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())}`;
 }
+
+export function formatearFecha(fecha) {
+  if (!fecha) return '';
+  const date = new Date(fecha);
+  if (Number.isNaN(date.getTime())) return String(fecha); // Si ya es texto, lo devuelve
+  return date.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
