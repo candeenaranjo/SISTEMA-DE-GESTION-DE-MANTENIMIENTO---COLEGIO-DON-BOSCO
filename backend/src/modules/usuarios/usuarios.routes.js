@@ -16,10 +16,14 @@ const DNI = {
 
 router.use(verificarToken);
 
+
 router.get('/', verificarRol(ROLES.DIRECTIVO), controller.listar);
 
+router.get('/asignables', verificarRol(ROLES.JEFE_MANTENIMIENTO), controller.listarAsignables);
 //antes de "/:id"
 router.get('/cargos', verificarRol(ROLES.DIRECTIVO), controller.listarCargos);
+
+
 
 router.get(
   '/:id',

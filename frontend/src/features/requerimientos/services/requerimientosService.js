@@ -1,7 +1,4 @@
 import { apiRequest } from '../../../shared/api/apiClient';
-import { obtenerToken } from '../../auth/services/authService';
-
-// Funciones auxiliares
 
 function formatearFechaHora(valor) {
   if (!valor) return '';
@@ -18,6 +15,7 @@ function formatearFechaHora(valor) {
 function mapearRequerimiento(r) {
   return {
     id: r.id,
+    idUsuario: r.idUsuario,
     titulo: r.titulo,
     descripcion: r.descripcion,
     sector: r.sector ?? r.lugar ?? '',
@@ -26,58 +24,52 @@ function mapearRequerimiento(r) {
     rolReportante: r.rolReportante,
     fechaHora: formatearFechaHora(r.fechaHora ?? r.fecha),
     estado: r.estado,
+    // La imagen solo viene en el detalle (GET /requerimientos/:id), no en el listado
     imagen: r.imagen ?? null,
-    categoria: r.categoria ?? null, // Campo que estaba en el Api
+    tieneImagen: Boolean(r.imagen ?? r.tieneImagen),
+    categoria: r.categoria ?? null,
   };
 }
 
-// Endpoints de Requerimientos
-
-export async function obtenerRequerimientos() {
-  const requerimientos = await apiRequest('/requerimientos', {
-    token: obtenerToken(),
-  });
+export async function obtenerRequerimientos(filtros = {}) {
+  const requerimientos = await apiRequest('/requerimientos', { query: filtros });
   return requerimientos.map(mapearRequerimiento);
 }
 
-// Alias para mantener compatibilidad si algun componente usa el nombre viejo
+// Pantalla "Requerimientos" del Jefe: solo los pendientes que todavía no tienen una tarea en curso
+export function obtenerRequerimientosPendientes() {
+  return obtenerRequerimientos({ estado: 'pendiente', sinTarea: true });
+}
+
+// Ordenanza y Directivo: el backend ya devuelve solo los propios, en cualquier estado
+export const obtenerMisRequerimientos = () => obtenerRequerimientos();
+
 export const getRequerimientos = obtenerRequerimientos;
 
-export async function obtenerMisRequerimientos() {
-  const requerimientos = await apiRequest('/requerimientos', {
-    token: obtenerToken(),
-  });
-  return requerimientos.map(mapearRequerimiento);
-}
-
+// Detalle (solo Jefe): incluye la imagen
 export async function obtenerRequerimientoPorId(id) {
-  const requerimiento = await apiRequest(`/requerimientos/${id}`, {
-    token: obtenerToken(),
-  });
+  const requerimiento = await apiRequest(`/requerimientos/${id}`);
   return mapearRequerimiento(requerimiento);
 }
 
 export async function crearRequerimiento(datos) {
   const requerimiento = await apiRequest('/requerimientos', {
     method: 'POST',
-    token: obtenerToken(),
     body: datos,
   });
   return mapearRequerimiento(requerimiento);
 }
 
-// Alias para mantener compatibilidad si algun componente usa el nombre viejo
 export const guardarRequerimiento = crearRequerimiento;
 
 export async function eliminarRequerimiento(id) {
-  await apiRequest(`/requerimientos/${id}`, {
-    method: 'DELETE',
-    token: obtenerToken(),
-  });
+  await apiRequest(`/requerimientos/${id}`, { method: 'DELETE' });
 }
 
-// Endpoints de Categorías
-
 export async function obtenerCategorias() {
-  return apiRequest('/requerimientos/categorias', { token: obtenerToken() });
+  return apiRequest('/categorias');
+}
+
+export async function obtenerSectores() {
+  return apiRequest('/sectores');
 }

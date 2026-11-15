@@ -17,7 +17,7 @@ function AccionesDetalleTarea({ tarea, usuario, onAceptar, onRechazar }) {
                 </h6>
 
                 {/* muestra esto solo si es el jefe*/}
-                {esJefe && (
+                {esJefe && !['finalizada', 'aprobada', 'cancelada'].includes(tarea.estado) && (
                     <Link to={`/gestor/tareas/${tarea.id}/editar`} className="btn btn-primary w-100" >
                         <FaPenToSquare className="me-2" />
                         Editar tarea

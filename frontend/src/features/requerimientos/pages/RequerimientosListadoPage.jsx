@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
 import { FaFileLines, FaPlus, FaChevronLeft, FaChevronRight } from 'react-icons/fa6';
 import '../styles/RequerimientosListadoPage.css';
-import { obtenerRequerimientos, eliminarRequerimiento } from '../services/requerimientosService';
+import { obtenerRequerimientosPendientes, eliminarRequerimiento } from '../services/requerimientosService';
 import Filtros from '../../../shared/components/Filtros';
 import TablaRequerimientos from '../components/TablaRequerimientos';
 import EncabezadoPagina from '../../../shared/components/EncabezadoPagina';
@@ -25,7 +25,7 @@ function RequerimientosListadoPage() {
 
   useEffect(() => {
     let activo = true;
-    obtenerRequerimientos()
+    obtenerRequerimientosPendientes()
       .then((data) => { if (activo) setTodosLosRequerimientos(data); })
       .catch((err) => { if (activo) setError(err.message || 'No se pudieron cargar los requerimientos.'); })
       .finally(() => { if (activo) setCargando(false); });

@@ -2,13 +2,19 @@ import * as service from './requerimientos.service.js';
 
 export async function listar(req, res) {
   const { sector, estado, desde, hasta } = req.query;
-  const requerimientos = await service.listar(req.usuario, { sector, estado, desde, hasta });
+  const sinTarea = req.query.sinTarea === 'true';
+  const requerimientos = await service.listar(req.usuario, { sector, estado, desde, hasta, sinTarea });
   res.json(requerimientos);
 }
 
 export async function listarCategorias(req, res) {
   const categorias = await service.listarCategorias();
   res.json(categorias);
+}
+
+export async function listarSectores(req, res) {
+  const sectores = await service.listarSectores();
+  res.json(sectores);
 }
 
 export async function obtener(req, res) {

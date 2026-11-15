@@ -153,6 +153,14 @@ export async function listarCargos() {
   return rows;
 }
 
+export async function listarAsignables(roles = ['jefeMantenimiento', 'ordenanza']) {
+  const { rows } = await pool.query(
+    `${SELECT_USUARIO} WHERE u.activo = TRUE AND r.nombre = ANY($1::text[]) ORDER BY r.nombre, u.apellido, u.nombre`,
+    [roles],
+  );
+  return rows;
+}
+
 export async function contarDirectivosActivos(excluirId = null) {
   const { rows } = await pool.query(
     `SELECT COUNT(*)::int AS total

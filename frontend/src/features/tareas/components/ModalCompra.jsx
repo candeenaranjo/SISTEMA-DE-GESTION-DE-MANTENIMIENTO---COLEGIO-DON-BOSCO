@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FaXmark, FaCartShopping, FaCalendarDays } from 'react-icons/fa6';
 import '../styles/ModalCompra.css';
+import { aFechaInput } from '../../../shared/utils/formatos';
 
 const VALORES_INICIALES = { fechaCompra: '', montoTotal: '', detalleCompra: '', factura: null, };
 
@@ -14,14 +15,16 @@ function ModalCompra({ abierto, compra, tareaId, onCerrar, onGuardar }) {
     useEffect(() => {
         if (abierto) {
             if (compra) {
-                setValores({ ...VALORES_INICIALES, ...compra });
+                setValores({
+                    ...VALORES_INICIALES,
+                    ...compra,
+                    montoTotal: compra.montoTotal ?? compra.monto ?? '',
+                    detalleCompra: compra.detalleCompra ?? compra.detalle ?? '',
+                    fechaCompra: aFechaInput(compra.fechaCompra ?? compra.fecha),
+                });
             } else {
                 //fecha por defecto
-                const hoy = new Date();
-                const dia = String(hoy.getDate()).padStart(2, '0');
-                const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-                const anio = hoy.getFullYear();
-                setValores({ ...VALORES_INICIALES, fechaCompra: `${dia}/${mes}/${anio}`, });
+                setValores({ ...VALORES_INICIALES, fechaCompra: aFechaInput(new Date()) });
             }
             setErrores({});
         }
@@ -91,9 +94,8 @@ function ModalCompra({ abierto, compra, tareaId, onCerrar, onGuardar }) {
                                     <FaCalendarDays className="text-muted" />
                                 </span>
                                 <input
-                                    type="text"
+                                    type="date"
                                     className={`form-control ${errores.fechaCompra ? 'is-invalid' : ''}`}
-                                    placeholder="dd/mm/aaaa"
                                     value={valores.fechaCompra}
                                     onChange={(e) => manejarCambio('fechaCompra', e.target.value)}
                                 />
@@ -142,7 +144,7 @@ function ModalCompra({ abierto, compra, tareaId, onCerrar, onGuardar }) {
                                 <div className="invalid-feedback">{errores.detalleCompra}</div>
                             )}
                             <small className="text-muted d-block text-end">
-                                {valores.detalleCompra.length}/500
+                                {(valores.detalleCompra ?? '').length}/500
                             </small>
                         </div>
                     </div>

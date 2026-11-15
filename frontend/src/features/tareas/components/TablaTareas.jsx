@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { FaPenToSquare, FaEye } from 'react-icons/fa6';
 import Etiqueta from '../../../shared/components/Etiqueta';
+import { codigoTarea, codigoRequerimiento, formatearFechaHora } from '../../../shared/utils/formatos';
 import '../styles/TablaTareas.css';
 
 function TablaTareas({ tareas, usuario }) {
@@ -38,9 +39,9 @@ function TablaTareas({ tareas, usuario }) {
             <tbody>
               {tareas.map((t) => (
                 <tr key={t.id}>
-                  <td className="ps-4 fw-bold">{t.id}</td>
+                  <td className="ps-4 fw-bold">{codigoTarea(t.id)}</td>
                   <td>
-                    <div className="fw-semibold small">{t.requerimientoId}</div>
+                    <div className="fw-semibold small">{codigoRequerimiento(t.idRequerimiento)}</div>
                     <small className="text-muted">{t.requerimientoTitulo}</small>
                   </td>
                   <td className="small">{t.titulo}</td>
@@ -56,7 +57,7 @@ function TablaTareas({ tareas, usuario }) {
                       <span className="text-muted">–</span>
                     )}
                   </td>
-                  <td className="small text-nowrap">{t.fechaCreacion}</td>
+                  <td className="small text-nowrap">{formatearFechaHora(t.fechaCreacion)}</td>
                   <td className="text-end pe-4">
                     <div className="d-flex justify-content-end gap-1">
                       {/* ver detalle para los dos roles */}
@@ -87,7 +88,7 @@ function TablaTareas({ tareas, usuario }) {
             <div className="card-body">
               {/* heder */}
               <div className="d-flex justify-content-between align-items-center mb-2">
-                <span className="tarea-card__id">{t.id}</span>
+                <span className="tarea-card__id">{codigoTarea(t.id)}</span>
                 <Etiqueta estado={t.estado} />
               </div>
 
@@ -96,7 +97,7 @@ function TablaTareas({ tareas, usuario }) {
 
               {/* requerimiento */}
               <small className="text-muted d-block mb-2">
-                {t.requerimientoId} · {t.requerimientoTitulo}
+                {codigoRequerimiento(t.idRequerimiento)} · {t.requerimientoTitulo}
               </small>
 
               <div className="tarea-card__divisor" />
@@ -124,7 +125,7 @@ function TablaTareas({ tareas, usuario }) {
 
                 <div className="tarea-card__campo">
                   <span className="tarea-card__label">Fecha</span>
-                  <span className="tarea-card__valor">{t.fechaCreacion}</span>
+                  <span className="tarea-card__valor">{formatearFechaHora(t.fechaCreacion)}</span>
                 </div>
               </div>
 

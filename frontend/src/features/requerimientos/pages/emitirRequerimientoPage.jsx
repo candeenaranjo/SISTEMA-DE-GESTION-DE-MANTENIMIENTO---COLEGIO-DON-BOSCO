@@ -1,15 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useOutletContext } from 'react-router';
 import { FaFileLines, FaLocationDot, FaCloudArrowUp, FaXmark, FaTag } from 'react-icons/fa6';
-import { crearRequerimiento, obtenerCategorias } from '../services/requerimientosService';
+import {
+  crearRequerimiento,
+  obtenerCategorias,
+  obtenerSectores,
+} from '../services/requerimientosService';
 import { useToast } from '../../../shared/context/ToastContext';
 import Encabezado from '../../../shared/components/EncabezadoPagina';
 import '../styles/EmitirRequerimientoPage.css';
-
-const LUGARES = [
-  'Aula 12', 'Baño Pabellón B', 'Patio', 'Laboratorio 3', 'Dirección',
-  'Pasillo principal', 'Biblioteca', 'Gimnasio', 'Cocina', 'Otro',
-];
 
 const MAX_DESCRIPCION = 500;
 
@@ -17,25 +16,30 @@ function EmitirRequerimientoPage() {
   const navigate = useNavigate();
   const { mostrarToast } = useToast();
   const inputFileRef = useRef(null);
+  const usuario = useOutletContext();
 
-  // Estado para categorías
+  // Categorías y sectores vienen del backend
   const [categorias, setCategorias] = useState([]);
-  const [cargandoCategorias, setCargandoCategorias] = useState(true);
-  
-  // Estado del formulario (fijate que ahora es idCategoria en lugar de titulo)
-  const [formData, setFormData] = useState({ idCategoria: '', descripcion: '', lugar: '' });
+  const [sectores, setSectores] = useState([]);
+  const [cargandoListas, setCargandoListas] = useState(true);
+
+  // El formulario guarda los IDs de la categoría y del sector
+  const [formData, setFormData] = useState({ idCategoria: '', idSector: '', descripcion: '' });
+
   const [imagen, setImagen] = useState(null);
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [leyendoImagen, setLeyendoImagen] = useState(false);
 
-  // Cargar categorías desde el back al montar
   useEffect(() => {
-    obtenerCategorias()
-      .then((data) => setCategorias(data))
-      .catch((err) => setError('No se pudieron cargar las categorías. ' + err.message))
-      .finally(() => setCargandoCategorias(false));
+    Promise.all([obtenerCategorias(), obtenerSectores()])
+      .then(([dataCats, dataSecs]) => {
+        setCategorias(dataCats);
+        setSectores(dataSecs);
+      })
+      .catch((err) => setError('No se pudieron cargar los datos del formulario. ' + err.message))
+      .finally(() => setCargandoListas(false));
   }, []);
 
   const handleChange = (e) => {
@@ -60,7 +64,7 @@ function EmitirRequerimientoPage() {
       setImagen({ archivo: file, url: reader.result, nombre: file.name, peso: file.size });
     };
     reader.onerror = () => { setError('No se pudo leer la imagen seleccionada.'); };
-    reader.onloadend = () => { setLeyendoImagen(false); };
+    reader.onloadend = () => setLeyendoImagen(false);
     reader.readAsDataURL(file);
   };
 
@@ -74,7 +78,7 @@ function EmitirRequerimientoPage() {
     e.preventDefault();
     setError('');
 
-    if (!formData.idCategoria || !formData.descripcion.trim() || !formData.lugar.trim()) {
+    if (!formData.idCategoria || !formData.idSector || !formData.descripcion.trim()) {
       setError('Por favor completá los campos obligatorios (*).');
       return;
     }
@@ -83,14 +87,20 @@ function EmitirRequerimientoPage() {
 
     try {
       const creado = await crearRequerimiento({
-        idCategoria: Number(formData.idCategoria), // <-- Mandamos el ID de la categoría
+        idCategoria: Number(formData.idCategoria),
+        idSector: Number(formData.idSector),
         descripcion: formData.descripcion.trim(),
-        sector: formData.lugar,
         imagen: imagen?.url ?? null,
       });
 
       mostrarToast(`Requerimiento REQ-${String(creado.id).padStart(4, '0')} emitido correctamente`, 'success');
-      navigate('/gestor/requerimientos/mis-requerimientos');
+
+      // El Jefe ve en "Requerimientos" los pendientes; el resto, los que emitió cada uno
+      navigate(
+        usuario?.rol === 'jefeMantenimiento'
+          ? '/gestor/requerimientos'
+          : '/gestor/requerimientos/mis-requerimientos',
+      );
     } catch (err) {
       setError(err.message || 'No se pudo emitir el requerimiento.');
     } finally {
@@ -112,8 +122,8 @@ function EmitirRequerimientoPage() {
         <div className="card border-0 shadow-sm mb-3">
           <div className="card-body p-3 p-md-4">
             <div className="row g-3 mb-3">
-              
-              {/* CATEGORÍA (Menú desplegable) */}
+
+              {/* CATEGORÍA */}
               <div className="col-12 col-md-6">
                 <label className="form-label">Categoría <span className="text-danger">*</span></label>
                 <div className="emitir-requerimiento__select-icono">
@@ -123,10 +133,10 @@ function EmitirRequerimientoPage() {
                     className="form-select"
                     value={formData.idCategoria}
                     onChange={handleChange}
-                    disabled={cargandoCategorias}
+                    disabled={cargandoListas}
                   >
                     <option value="">
-                      {cargandoCategorias ? 'Cargando categorías...' : 'Seleccioná una categoría'}
+                      {cargandoListas ? 'Cargando...' : 'Seleccioná una categoría'}
                     </option>
                     {categorias.map((cat) => (
                       <option key={cat.id_categoria} value={cat.id_categoria}>
@@ -137,14 +147,26 @@ function EmitirRequerimientoPage() {
                 </div>
               </div>
 
-              {/* SECTOR (Menú desplegable) */}
+              {/* SECTOR */}
               <div className="col-12 col-md-6">
                 <label className="form-label">Sector <span className="text-danger">*</span></label>
                 <div className="emitir-requerimiento__select-icono">
                   <FaLocationDot className="emitir-requerimiento__select-icono-svg" />
-                  <select name="lugar" className="form-select" value={formData.lugar} onChange={handleChange}>
-                    <option value="">Seleccioná el sector</option>
-                    {LUGARES.map((l) => <option key={l} value={l}>{l}</option>)}
+                  <select
+                    name="idSector"
+                    className="form-select"
+                    value={formData.idSector}
+                    onChange={handleChange}
+                    disabled={cargandoListas}
+                  >
+                    <option value="">
+                      {cargandoListas ? 'Cargando...' : 'Seleccioná un sector'}
+                    </option>
+                    {sectores.map((sec) => (
+                      <option key={sec.id_sector} value={sec.id_sector}>
+                        {sec.nombre}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -169,7 +191,7 @@ function EmitirRequerimientoPage() {
           </div>
         </div>
 
-        {/* IMAGEN (igual que antes) */}
+        {/* IMAGEN */}
         <div className="card border-0 shadow-sm mb-4">
           <div className="card-body p-3 p-md-4">
             <label className="form-label mb-3">Agregar imagen (opcional)</label>

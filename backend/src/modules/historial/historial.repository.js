@@ -1,6 +1,8 @@
 import { pool } from '../../config/db.js';
 
 export async function listarPorTarea(idTarea) {
+  // Dentro de una transacción now() devuelve siempre el mismo instante, así que varias filas del
+  // mismo cambio (ej. "rechazada" y "en-proceso") pueden tener la misma fecha: el id desempata.
   const { rows } = await pool.query(
     `SELECT
        h.id_historial AS id,
@@ -11,7 +13,7 @@ export async function listarPorTarea(idTarea) {
      FROM historial h
      LEFT JOIN usuarios u ON u.id_usuario = h.id_usuario
      WHERE h.id_tarea = $1
-     ORDER BY h.fecha_hora ASC`,
+     ORDER BY h.fecha_hora ASC, h.id_historial ASC`,
     [idTarea],
   );
 

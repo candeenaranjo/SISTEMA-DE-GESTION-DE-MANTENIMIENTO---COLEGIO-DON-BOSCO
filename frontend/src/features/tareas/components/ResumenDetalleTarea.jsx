@@ -1,10 +1,12 @@
 import { FaUser, FaCircleCheck, FaCartShopping, } from 'react-icons/fa6';
 import Etiqueta from '../../../shared/components/Etiqueta';
+import { codigoTarea, formatearFechaHora } from '../../../shared/utils/formatos';
 import '../styles/ResumenDetalleTarea.css';
 
 function ResumenDetalleTarea({ tarea, tieneCompra }) {
 
-  const tieneFechaFinalizacion = Boolean(tarea.fechaFinalizacion);
+  // La fecha de fin también se guarda al cancelar: solo se muestra como "Finalizada" si realmente finalizó
+  const tieneFechaFinalizacion = ['finalizada', 'aprobada'].includes(tarea.estado) && Boolean(tarea.fechaFin);
 
   return (
     <div className="card border-0 shadow-sm mb-4 resumen-detalle-tarea">
@@ -13,7 +15,7 @@ function ResumenDetalleTarea({ tarea, tieneCompra }) {
           {/* id de tarea */}
           <div className="col-6 col-md-2">
             <small className="text-muted d-block">Tarea N°</small>
-            <div className="resumen-detalle-tarea__id">{tarea.id}</div>
+            <div className="resumen-detalle-tarea__id">{codigoTarea(tarea.id)}</div>
           </div>
 
           {/* prioridad */}
@@ -35,10 +37,10 @@ function ResumenDetalleTarea({ tarea, tieneCompra }) {
               <FaUser className="text-muted flex-shrink-0" size={14} />
               <div className="min-w-0">
                 <div className="text-capitalize">
-                  {tarea.responsable?.tipo ?? 'Jefe'}
+                  {tarea.responsable?.tipo ?? 'Sin asignar'}
                 </div>
                 <small className="text-muted d-block text-truncate">
-                  {tarea.responsable?.nombre ?? 'Jefe de Mantenimiento'}
+                  {tarea.responsable?.nombre ?? '—'}
                 </small>
               </div>
             </div>
@@ -59,14 +61,14 @@ function ResumenDetalleTarea({ tarea, tieneCompra }) {
                 <small className="text-muted d-block">Finalizada</small>
                 <div className="d-flex align-items-center gap-2 resumen-detalle-tarea__valor">
                   <FaCircleCheck className="text-success flex-shrink-0" size={14} />
-                  <span>{tarea.fechaFinalizacion}</span>
+                  <span>{formatearFechaHora(tarea.fechaFin)}</span>
                 </div>
               </>
             ) : (
               <>
                 <small className="text-muted d-block">Creada</small>
                 <div className="resumen-detalle-tarea__valor">
-                  {tarea.fechaCreacion}
+                  {formatearFechaHora(tarea.fechaCreacion)}
                 </div>
               </>
             )}

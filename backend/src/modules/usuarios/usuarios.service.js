@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { ApiError } from '../../utils/ApiError.js';
-import { ROLES } from '../../constants/roles.js';
+import { ROLES, ROLES_RESPONSABLES } from '../../constants/roles.js';
 import { mapearUsuario } from './usuarios.mapper.js';
 import * as repository from './usuarios.repository.js';
 
@@ -263,4 +263,9 @@ export async function eliminar(id, actor) {
 
   await protegerUltimoDirectivo(usuario, usuario.rol, false);
   await repository.desactivar(id);
+}
+// GET /usuarios/asignables (Jefe): cuentas activas que pueden ser responsables de una tarea (Jefe y Ordenanza)
+export async function listarAsignables() {
+  const usuarios = await repository.listarAsignables(ROLES_RESPONSABLES);
+  return usuarios.map(mapearUsuario);
 }

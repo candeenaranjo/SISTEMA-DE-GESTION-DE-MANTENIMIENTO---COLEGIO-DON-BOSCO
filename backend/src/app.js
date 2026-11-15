@@ -9,11 +9,13 @@ import authRoutes from './modules/auth/auth.routes.js';
 import usuariosRoutes from './modules/usuarios/usuarios.routes.js';
 import requerimientosRoutes from './modules/requerimientos/requerimientos.routes.js';
 import tareasRoutes from './modules/tareas/tareas.routes.js';
-import comprasRoutes from './modules/compras/compras.routes.js';
+import { comprasDeTareaRouter, comprasRouter } from './modules/compras/compras.routes.js';
 import historialRoutes from './modules/historial/historial.routes.js';
 import personalRoutes from './modules/personal-externo/personal.routes.js';
 import notificacionesRoutes from './modules/notificaciones/notificaciones.routes.js';
 import estadisticasRoutes from './modules/estadisticas/estadisticas.routes.js';
+import { categoriasRouter, sectoresRouter } from './modules/catalogos/catalogos.routes.js';
+
 
 const app = express();
 
@@ -28,9 +30,12 @@ app.get('/api/v1/health', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/usuarios', usuariosRoutes);
 app.use('/api/v1/requerimientos', requerimientosRoutes);
+app.use('/api/v1/categorias', categoriasRouter);
+app.use('/api/v1/sectores', sectoresRouter);
 
 // Las rutas anidadas de tareas se montan antes del router de tareas.
-app.use('/api/v1/tareas/:id/compras', comprasRoutes);
+app.use('/api/v1/tareas/:id/compras', comprasDeTareaRouter);
+app.use('/api/v1/compras/:id', comprasRouter);
 app.use('/api/v1/tareas/:id/historial', historialRoutes);
 app.use('/api/v1/tareas', tareasRoutes);
 

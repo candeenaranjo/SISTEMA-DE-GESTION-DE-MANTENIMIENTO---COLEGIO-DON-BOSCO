@@ -23,7 +23,7 @@ export async function iniciarSesion(usuarioOEmail, password) {
 
   const data = await apiRequest('/auth/login', {
     method: 'POST',
-    body: { usuario: identificador, password },
+    body: { nombreUsuario: identificador, password },
   });
 
   guardarSesion({ token: data.token, usuario: data.usuario });

@@ -1,23 +1,59 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Link, useParams, useSearchParams, useNavigate } from 'react-router';
-import { FaArrowLeft, FaScrewdriverWrench } from 'react-icons/fa6';
+import { useState, useEffect } from 'react';
+import { Link, useParams, useSearchParams, useNavigate, useOutletContext } from 'react-router';
+import { FaScrewdriverWrench } from 'react-icons/fa6';
 import '../styles/FormularioTareaPage.css';
-import { obtenerTareaPorId, obtenerRequerimientoParaTarea, obtenerOrdenanzas, obtenerPersonalExterno, crearTarea, actualizarTarea, finalizarTarea, cancelarTarea, } from '../services/tareasService';
-import { obtenerCompraPorTarea, crearCompra, actualizarCompra, } from '../services/comprasService';
+import {
+  obtenerTareaPorId,
+  obtenerResponsablesInternos,
+  obtenerPersonalExterno,
+  crearTarea,
+  actualizarTarea,
+  cambiarEstadoTarea,
+  cancelarTarea,
+} from '../services/tareasService';
+import { crearCompra, actualizarCompra } from '../services/comprasService';
+import { obtenerRequerimientoPorId } from '../../requerimientos/services/requerimientosService';
 import Encabezado from '../../../shared/components/EncabezadoPagina';
 import { useToast } from '../../../shared/context/ToastContext';
 import ModalConfirmacion from '../../../shared/components/ModalConfirmacion';
 import ModalCancelarTarea from '../components/ModalCancelarTarea';
-
 import DatosRequerimiento from '../components/DatosRequerimiento';
 import DatosTarea from '../components/DatosTarea';
 import AccionesTarea from '../components/AccionesTarea';
 import ModalCompra from '../components/ModalCompra';
+import { codigoTarea, formatearFechaHora } from '../../../shared/utils/formatos';
 
-// estado que no permiten cambios
-const ESTADOS_FINALES = ['finalizada', 'aprobada', 'rechazada', 'cancelada'];
+// Estados en los que la tarea ya no se edita
+const ESTADOS_FINALES = ['finalizada', 'aprobada', 'cancelada'];
 
-const VALORES_INICIALES_CREAR = { prioridad: 'media', observaciones: '', tipoAsignacion: 'jefe', personalAsignado: '', telefono: '', estado: 'pendiente', };
+// Mismas transiciones que valida el backend (PUT /tareas/:id/estado)
+const TRANSICIONES = {
+  pendiente: ['en-proceso'],
+  'en-proceso': ['demorada', 'finalizada'],
+  demorada: ['en-proceso'],
+};
+
+const VALORES_INICIALES = {
+  prioridad: 'media',
+  observaciones: '',
+  tipoAsignacion: 'jefe', // 'jefe' | 'interno' | 'externo'
+  idResponsable: '',
+  idPersonalExterno: '',
+  telefono: '',
+  estado: 'pendiente',
+};
+
+// El backend devuelve monto/fecha; los componentes de compra trabajan con montoTotal/fechaCompra
+function normalizarCompra(c) {
+  return c ? { ...c, montoTotal: c.montoTotal ?? c.monto, fechaCompra: c.fecha ?? c.fechaCompra } : null;
+}
+
+// El responsable "interno" es el personal de Ordenanza; si es el propio Jefe, es "jefe"
+function tipoDeAsignacion(tarea, idUsuario) {
+  if (tarea.idPersonalExterno) return 'externo';
+  if (tarea.idResponsable && tarea.idResponsable !== idUsuario) return 'interno';
+  return 'jefe';
+}
 
 function FormularioTareaPage() {
   const { id } = useParams();
@@ -25,55 +61,341 @@ function FormularioTareaPage() {
   const requerimientoId = searchParams.get('requerimiento');
   const navigate = useNavigate();
   const { mostrarToast } = useToast();
+  const usuario = useOutletContext();
 
   const modoEdicion = Boolean(id);
-  const ordenanzas = obtenerOrdenanzas();
-  const personalExterno = obtenerPersonalExterno();
 
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [valores, setValores] = useState(VALORES_INICIALES);
+  const [tarea, setTarea] = useState(null);
+  const [requerimiento, setRequerimiento] = useState(null);
+  const [compra, setCompra] = useState(null);
+
+  const [internos, setInternos] = useState([]);
+  const [externos, setExternos] = useState([]);
+
+  const [guardando, setGuardando] = useState(false);
   const [modalFinalizar, setModalFinalizar] = useState(false);
   const [modalCancelar, setModalCancelar] = useState(false);
+  const [modalCompraAbierto, setModalCompraAbierto] = useState(false);
 
-  // redirigir si es crear y no hay requerimiento
+  // Si es crear y no hay requerimiento, volver
   useEffect(() => {
     if (!modoEdicion && !requerimientoId) {
       navigate('/gestor/requerimientos', { replace: true });
     }
   }, [modoEdicion, requerimientoId, navigate]);
 
-  // cargar datos iniciales segun modo
-  const datosIniciales = useMemo(() => {
-    if (modoEdicion) {
-      const tarea = obtenerTareaPorId(id);
-      if (!tarea) return null;
+  // Cargar listas de responsables + la tarea o el requerimiento
+  useEffect(() => {
+    const ctrl = new AbortController();
 
-      const requerimiento = { id: tarea.requerimientoId, titulo: tarea.requerimientoTitulo, descripcion: tarea.descripcion, lugar: tarea.lugar, reportadoPor: tarea.reportadoPor, rolReportante: tarea.rolReportante, fechaHora: tarea.fechaCreacion, };
+    async function cargar() {
+      setCargando(true);
+      setError(null);
+      try {
+        const [respInternos, respExternos] = await Promise.all([
+          obtenerResponsablesInternos(),
+          obtenerPersonalExterno(),
+        ]);
+        if (ctrl.signal.aborted) return;
+        setInternos(respInternos ?? []);
+        setExternos(respExternos ?? []);
 
-      const valores = { prioridad: tarea.prioridad ?? 'media', observaciones: tarea.observaciones ?? '', estado: tarea.estado ?? 'pendiente', tipoAsignacion: tarea.responsable?.tipo ?? 'jefe', personalAsignado: tarea.responsable?.nombre ?? '', telefono: tarea.telefono ?? '', };
-
-      return { valores, tarea, requerimiento };
+        if (modoEdicion) {
+          const t = await obtenerTareaPorId(id);
+          if (ctrl.signal.aborted) return;
+          setTarea(t);
+          setCompra(normalizarCompra(t.compra));
+          setRequerimiento({
+            id: t.idRequerimiento,
+            titulo: t.categoria,
+            descripcion: t.descripcion,
+            lugar: t.sector,
+            reportadoPor: t.reportadoPor,
+            rolReportante: t.rolReportante,
+            fechaHora: formatearFechaHora(t.fechaEmision ?? t.fechaCreacion),
+          });
+          setValores({
+            prioridad: t.prioridad ?? 'media',
+            observaciones: t.observaciones ?? '',
+            tipoAsignacion: tipoDeAsignacion(t, usuario?.id),
+            idResponsable: t.idResponsable ?? '',
+            idPersonalExterno: t.idPersonalExterno ?? '',
+            telefono: t.telefono ?? '',
+            estado: t.estado ?? 'pendiente',
+          });
+        } else if (requerimientoId) {
+          const r = await obtenerRequerimientoPorId(requerimientoId);
+          if (ctrl.signal.aborted) return;
+          setRequerimiento(r);
+          setValores(VALORES_INICIALES);
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') setError(e.message);
+      } finally {
+        if (!ctrl.signal.aborted) setCargando(false);
+      }
     }
 
-    if (requerimientoId) {
-      const req = obtenerRequerimientoParaTarea(requerimientoId);
-      if (!req) return null;
-      return { valores: VALORES_INICIALES_CREAR, requerimiento: req };
-    }
-
-    return { valores: VALORES_INICIALES_CREAR };
+    cargar();
+    return () => ctrl.abort();
+    // usuario?.id solo se usa para clasificar al responsable al cargar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, requerimientoId, modoEdicion]);
 
-  const [valores, setValores] = useState(datosIniciales?.valores ?? VALORES_INICIALES_CREAR);
-  const [guardando, setGuardando] = useState(false);
+  function manejarCambio(campo, valor) {
+    setValores((prev) => {
+      const nuevos = { ...prev, [campo]: valor };
+      if (campo === 'tipoAsignacion') {
+        nuevos.idResponsable = '';
+        nuevos.idPersonalExterno = '';
+        nuevos.telefono = '';
+      }
+      return nuevos;
+    });
+  }
 
-  // compra asociada
-  const [compra, setCompra] = useState(() => {
-    if (modoEdicion && id) return obtenerCompraPorTarea(id) ?? null;
-    return null;
-  });
+  // El valor del select es "int-<id>" o "ext-<id>"
+  function manejarSeleccionPersonal(valorSelect) {
+    if (!valorSelect) {
+      setValores((prev) => ({ ...prev, idResponsable: '', idPersonalExterno: '', telefono: '' }));
+      return;
+    }
+    const [tipo, idStr] = valorSelect.split('-');
+    const idNum = Number(idStr);
 
-  const [modalCompraAbierto, setModalCompraAbierto] = useState(false);
+    if (tipo === 'int') {
+      const persona = internos.find((p) => p.id === idNum);
+      setValores((prev) => ({
+        ...prev,
+        idResponsable: idNum,
+        idPersonalExterno: '',
+        telefono: persona?.telefono ?? '',
+      }));
+    } else {
+      const persona = externos.find((p) => p.id === idNum);
+      setValores((prev) => ({
+        ...prev,
+        idResponsable: '',
+        idPersonalExterno: idNum,
+        telefono: persona?.telefono ?? '',
+      }));
+    }
+  }
 
-  if (!datosIniciales) {
+  const valorSelectPersonal =
+    valores.tipoAsignacion === 'interno' && valores.idResponsable
+      ? `int-${valores.idResponsable}`
+      : valores.tipoAsignacion === 'externo' && valores.idPersonalExterno
+        ? `ext-${valores.idPersonalExterno}`
+        : '';
+
+  // "Interno" = personal de Ordenanza: el propio Jefe se elige con la opción "jefe"
+  const internosOrdenanza = internos.filter((p) => p.id !== usuario?.id);
+
+  // Responsable según el tipo elegido. Siempre se manda uno solo (el otro va en null) para que el backend
+  // reemplace al anterior: nunca quedan interno y externo juntos.
+  function armarResponsable() {
+    if (valores.tipoAsignacion === 'jefe') {
+      return { idResponsable: usuario?.id, idPersonalExterno: null };
+    }
+    if (valores.tipoAsignacion === 'interno') {
+      return { idResponsable: valores.idResponsable || null, idPersonalExterno: null };
+    }
+    return { idResponsable: null, idPersonalExterno: valores.idPersonalExterno || null };
+  }
+
+  const tareaCerrada = modoEdicion && ESTADOS_FINALES.includes(tarea?.estado);
+
+  async function manejarGuardar() {
+    if (tareaCerrada) {
+      mostrarToast(`La tarea está ${tarea.estado} y no se puede modificar`, 'danger');
+      return;
+    }
+    if (valores.tipoAsignacion === 'interno' && !valores.idResponsable) {
+      mostrarToast('Elegí el personal interno responsable', 'danger');
+      return;
+    }
+    if (valores.tipoAsignacion === 'externo' && !valores.idPersonalExterno) {
+      mostrarToast('Elegí el personal externo responsable', 'danger');
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      if (modoEdicion) {
+        // El motivo de una demora se pide ANTES de guardar nada
+        // "Pendiente" solo existe para la tarea generada por una cancelación: al asignarle responsable
+        // y guardar, pasa a "en proceso". Las demás solo alternan entre "en proceso" y "demorada".
+        const estadoDestino = tarea.estado === 'pendiente' ? 'en-proceso' : valores.estado;
+        const cambiaEstado = estadoDestino !== tarea.estado;
+        const datosEstado = { estado: estadoDestino };
+
+        if (cambiaEstado) {
+          const permitidos = TRANSICIONES[tarea.estado] ?? [];
+          if (!permitidos.includes(estadoDestino)) {
+            throw new Error(`No se puede pasar de "${tarea.estado}" a "${estadoDestino}" directamente.`);
+          }
+          if (estadoDestino === 'demorada') {
+            const motivo = window.prompt(
+              'Motivo de la demora (ej.: a la espera de aprobación del administrador):',
+            );
+            if (!motivo?.trim()) throw new Error('El motivo es obligatorio para demorar una tarea.');
+            datosEstado.motivo = motivo.trim();
+          }
+        }
+
+        // 1) Datos de la tarea
+        await actualizarTarea(id, {
+          prioridad: valores.prioridad,
+          observaciones: valores.observaciones,
+          ...armarResponsable(),
+        });
+
+        // 2) Estado, solo si cambió
+        if (cambiaEstado) await cambiarEstadoTarea(id, datosEstado);
+
+        mostrarToast('Tarea actualizada correctamente', 'success');
+        navigate('/gestor/tareas');
+        return;
+      }
+
+      // Crear: la tarea nace "en proceso" con el responsable elegido
+      const { idResponsable, idPersonalExterno } = armarResponsable();
+      const payload = {
+        idRequerimiento: Number(requerimiento.id),
+        prioridad: valores.prioridad,
+        observaciones: valores.observaciones || undefined,
+        idResponsable: idResponsable ?? undefined,
+        idPersonalExterno: idPersonalExterno ?? undefined,
+      };
+      const nueva = await crearTarea(payload);
+
+      // La compra cargada en el formulario se registra ahora que la tarea ya tiene id
+      if (compra) {
+        try {
+          await crearCompra(nueva.id, {
+            monto: Number(compra.montoTotal ?? compra.monto),
+            detalle: compra.detalleCompra ?? compra.detalle,
+            categoria: 'materiales',
+            fuenteFinanciamiento: compra.fuenteFinanciamiento ?? 'colegio',
+            fecha: compra.fechaCompra ?? undefined,
+            factura: compra.factura ?? null,
+          });
+        } catch (e) {
+          // La tarea ya existe: se lleva a su edición para reintentar solo la compra
+          mostrarToast(
+            `Se creó la tarea ${codigoTarea(nueva.id)}, pero no se pudo registrar la compra: ${e.message}`,
+            'danger',
+          );
+          navigate(`/gestor/tareas/${nueva.id}/editar`);
+          return;
+        }
+      }
+
+      mostrarToast(`Tarea ${codigoTarea(nueva.id)} creada correctamente`, 'success');
+      navigate('/gestor/tareas');
+    } catch (e) {
+      mostrarToast(e.message || 'Error al guardar la tarea', 'danger');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  async function manejarGuardarCompra(datosCompra) {
+    try {
+      if (modoEdicion && compra?.id) {
+        const actualizada = await actualizarCompra(compra.id, {
+          monto: Number(datosCompra.montoTotal),
+          detalle: datosCompra.detalleCompra,
+          categoria: 'materiales',
+          fuenteFinanciamiento: datosCompra.fuenteFinanciamiento ?? 'colegio',
+          fecha: datosCompra.fechaCompra || undefined,
+          factura: datosCompra.factura ?? null,
+        });
+        setCompra(normalizarCompra(actualizada));
+        mostrarToast('Compra actualizada correctamente', 'success');
+      } else if (modoEdicion) {
+        // La tarea ya existe y todavía no tiene compra: se registra directamente
+        const nueva = await crearCompra(id, {
+          monto: Number(datosCompra.montoTotal),
+          detalle: datosCompra.detalleCompra,
+          categoria: 'materiales',
+          fuenteFinanciamiento: datosCompra.fuenteFinanciamiento ?? 'colegio',
+          fecha: datosCompra.fechaCompra || undefined,
+          factura: datosCompra.factura ?? null,
+        });
+        setCompra(normalizarCompra(nueva));
+        mostrarToast('Compra registrada correctamente', 'success');
+      } else {
+        // Al crear: queda en el formulario y se persiste junto con la tarea
+        setCompra({
+          montoTotal: datosCompra.montoTotal,
+          detalleCompra: datosCompra.detalleCompra,
+          fechaCompra: datosCompra.fechaCompra,
+          factura: datosCompra.factura ?? null,
+          fuenteFinanciamiento: datosCompra.fuenteFinanciamiento ?? 'colegio',
+        });
+        mostrarToast('Compra lista para guardarse con la tarea', 'success');
+      }
+      setModalCompraAbierto(false);
+    } catch (e) {
+      mostrarToast(e.message || 'Error al guardar la compra', 'danger');
+    }
+  }
+
+  async function confirmarFinalizar() {
+    try {
+      await cambiarEstadoTarea(id, { estado: 'finalizada' });
+      mostrarToast('Tarea finalizada. Quedó pendiente de evaluación del Directivo.', 'success');
+      setModalFinalizar(false);
+      navigate('/gestor/tareas');
+    } catch (e) {
+      mostrarToast(e.message || 'Error al finalizar', 'danger');
+    }
+  }
+
+  async function confirmarCancelar(motivo) {
+    try {
+      const { nueva } = await cancelarTarea(id, motivo);
+      mostrarToast(
+        `Tarea cancelada. Se generó la tarea ${codigoTarea(nueva.id)} en estado pendiente.`,
+        'success',
+      );
+      setModalCancelar(false);
+      navigate('/gestor/tareas');
+    } catch (e) {
+      mostrarToast(e.message || 'Error al cancelar', 'danger');
+    }
+  }
+
+  if (cargando) {
+    return (
+      <div className="container-fluid py-5 text-center">
+        <div className="spinner-border text-secondary" role="status">
+          <span className="visually-hidden">Cargando...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container-fluid py-5 text-center">
+        <div className="alert alert-danger d-inline-block">{error}</div>
+        <div className="mt-3">
+          <Link to="/gestor/tareas" className="btn btn-primary">
+            Volver al listado
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!requerimiento) {
     return (
       <div className="container-fluid py-5 text-center">
         <p className="text-muted">No se encontró la tarea o el requerimiento.</p>
@@ -84,120 +406,26 @@ function FormularioTareaPage() {
     );
   }
 
-  const { tarea, requerimiento } = datosIniciales;
-
-  // determinar si la tarea esta finalizada
-  const tareaCerrada = modoEdicion && ESTADOS_FINALES.includes(tarea?.estado);
-
-  function manejarCambio(campo, valor) {
-    setValores((prev) => {
-      const nuevos = { ...prev, [campo]: valor };
-      if (campo === 'tipoAsignacion') {
-        nuevos.personalAsignado = '';
-        nuevos.telefono = '';
-      }
-      return nuevos;
-    });
-  }
-
-  function manejarSeleccionPersonal(nombre) {
-    const lista = valores.tipoAsignacion === 'interno' ? ordenanzas : personalExterno;
-    const persona = lista.find((p) => p.nombre === nombre);
-    setValores((prev) => ({
-      ...prev,
-      personalAsignado: nombre,
-      telefono: persona?.telefono ?? '',
-    }));
-  }
-
-  function armarResponsable() {
-    if (valores.tipoAsignacion === 'jefe') {
-      return { nombre: 'Jefe de Mantenimiento', tipo: 'jefe' };
-    }
-    return { nombre: valores.personalAsignado, tipo: valores.tipoAsignacion };
-  }
-
-  function manejarGuardarCompra(datosCompra) {
-    if (compra?.id) {
-      const actualizada = actualizarCompra(compra.id, datosCompra);
-      setCompra({ ...compra, ...actualizada });
-      mostrarToast('Compra actualizada correctamente', 'success');
-    } else {
-      const nueva = crearCompra({ ...datosCompra, tareaId: id ?? null });
-      setCompra(nueva);
-      mostrarToast('Compra registrada correctamente', 'success');
-    }
-    setModalCompraAbierto(false);
-  }
-
-  function manejarGuardar() {
-    setGuardando(true);
-
-    if (modoEdicion) {
-      // si la tarea esta finalizada, no se manda el estado
-      const cambios = {
-        prioridad: valores.prioridad,
-        observaciones: valores.observaciones,
-      };
-
-      if (!tareaCerrada) {
-        cambios.estado = valores.estado;
-      }
-
-      actualizarTarea(id, cambios);
-      mostrarToast('Tarea actualizada correctamente', 'success');
-    } else {
-      crearTarea({
-        ...valores,
-        responsable: armarResponsable(),
-        requerimiento,
-        compraId: compra?.id ?? null,
-      });
-      mostrarToast('Tarea creada correctamente', 'success');
-    }
-
-    setGuardando(false);
-    navigate('/gestor/tareas');
-  }
-
-  function confirmarFinalizar() {
-    finalizarTarea(id);
-    setModalFinalizar(false);
-    mostrarToast('Tarea finalizada correctamente', 'success');
-    navigate('/gestor/tareas');
-  }
-
-  function confirmarCancelar(motivo) {
-    cancelarTarea(id, motivo);
-    setModalCancelar(false);
-    mostrarToast('Tarea cancelada', 'success');
-    navigate('/gestor/tareas');
-  }
-
   return (
     <div className="formulario-tarea-page">
-      {/* encabezado */}
       <Encabezado
         volver={{ to: '/gestor/tareas', texto: 'Volver al listado' }}
         icono={FaScrewdriverWrench}
         titulo={modoEdicion ? 'Editar tarea' : 'Nueva tarea'}
-        subtitulo={
-          modoEdicion
-            ? 'Modificación de la tarea'
-            : 'Creación de nueva tarea'
-        }
+        subtitulo={modoEdicion ? 'Modificación de la tarea' : 'Creación de nueva tarea'}
       />
 
       <div className="row g-4">
-        {/* columna izquierda */}
         <div className="col-12 col-xl-8">
           <DatosRequerimiento requerimiento={requerimiento} />
 
           <DatosTarea
             modoEdicion={modoEdicion}
             valores={valores}
-            ordenanzas={ordenanzas}
-            personalExterno={personalExterno}
+            internos={internosOrdenanza}
+            deshabilitado={tareaCerrada}
+            externos={externos}
+            valorSelectPersonal={valorSelectPersonal}
             compra={compra}
             onCambiar={manejarCambio}
             onSeleccionarPersonal={manejarSeleccionPersonal}
@@ -206,11 +434,11 @@ function FormularioTareaPage() {
           />
         </div>
 
-        {/* columna derecha */}
         <div className="col-12 col-xl-4">
           <AccionesTarea
             modoEdicion={modoEdicion}
             valores={valores}
+            estadoActual={tarea?.estado ?? 'pendiente'}
             guardando={guardando}
             onCambiar={manejarCambio}
             onGuardar={manejarGuardar}
@@ -220,7 +448,6 @@ function FormularioTareaPage() {
         </div>
       </div>
 
-      {/* compra */}
       <ModalCompra
         abierto={modalCompraAbierto}
         compra={compra}
@@ -229,18 +456,16 @@ function FormularioTareaPage() {
         onGuardar={manejarGuardarCompra}
       />
 
-      {/* confirmacion finalizacion */}
       <ModalConfirmacion
         abierto={modalFinalizar}
         titulo="Finalizar tarea"
-        mensaje="¿Marcar esta tarea como finalizada? Una vez finalizada, quedará pendiente de evaluación por parte del Directivo."
+        mensaje="¿Marcar esta tarea como finalizada? Quedará pendiente de evaluación del Directivo."
         textoConfirmar="Finalizar"
         variante="success"
         onConfirmar={confirmarFinalizar}
         onCancelar={() => setModalFinalizar(false)}
       />
 
-      {/*confirmacion cancelacion */}
       <ModalCancelarTarea
         abierto={modalCancelar}
         onCerrar={() => setModalCancelar(false)}

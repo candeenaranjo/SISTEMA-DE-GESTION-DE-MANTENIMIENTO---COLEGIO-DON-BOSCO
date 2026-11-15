@@ -44,3 +44,8 @@ export async function eliminar(req, res) {
   await service.eliminar(Number(req.params.id), req.usuario);
   res.status(204).end();
 }
+
+export async function listarAsignables(req, res) {
+  const usuarios = await service.listarAsignables();
+  res.json(usuarios);
+}

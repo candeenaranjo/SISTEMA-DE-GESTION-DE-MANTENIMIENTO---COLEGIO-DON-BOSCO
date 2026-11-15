@@ -1,5 +1,6 @@
 import { FaClipboardList, FaCalendarDays, FaLocationDot, } from 'react-icons/fa6';
 import '../styles/RequerimientoAsociado.css';
+import { codigoRequerimiento, formatearFechaHora } from '../../../shared/utils/formatos';
 
 function RequerimientoAsociado({ tarea }) {
 
@@ -14,7 +15,7 @@ function RequerimientoAsociado({ tarea }) {
         <div className="mb-3">
           <small className="text-muted d-block mb-1">N° de requerimiento</small>
           <span className="requerimiento-asociado__id">
-            {tarea.requerimientoId}
+            {codigoRequerimiento(tarea.idRequerimiento)}
           </span>
         </div>
 
@@ -38,7 +39,7 @@ function RequerimientoAsociado({ tarea }) {
               </span>
               <div>
                 <small className="text-muted d-block">Fecha de emision</small>
-                <span className="fw-medium">{tarea.fechaCreacion}</span>
+                <span className="fw-medium">{formatearFechaHora(tarea.fechaEmision ?? tarea.fechaCreacion)}</span>
               </div>
             </div>
           </div>

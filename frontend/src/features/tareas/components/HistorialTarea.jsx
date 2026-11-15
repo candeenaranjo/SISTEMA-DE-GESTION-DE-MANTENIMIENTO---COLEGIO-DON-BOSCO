@@ -1,5 +1,6 @@
 import { FaClockRotateLeft, FaCircle } from 'react-icons/fa6';
 import Etiqueta from '../../../shared/components/Etiqueta';
+import { formatearFechaHora } from '../../../shared/utils/formatos';
 import '../styles/HistorialTarea.css';
 
 const TEXTO_ESTADO = { pendiente: 'Pendiente', 'en-proceso': 'En proceso', demorada: 'Demorada', cancelada: 'Cancelada', finalizada: 'Finalizada', aprobada: 'Aprobada', rechazada: 'Rechazada', };
@@ -20,16 +21,8 @@ function HistorialTarea({ historial }) {
             </div>
         );
     }
-    //paresear fecha
-    const historialOrdenado = [...historial].sort((a, b) => {
-        
-        const parseFecha = (str) => {
-            const [fecha, hora] = str.split(' ');
-            const [dia, mes, anio] = fecha.split('/');
-            return new Date(`${anio}-${mes}-${dia}T${hora}:00`);
-        };
-        return parseFecha(a.fecha) - parseFecha(b.fecha);
-    });
+    // El backend ya devuelve el historial en orden cronológico
+    const historialOrdenado = historial;
 
     return (
         <div className="card border-0 shadow-sm historial-tarea">
@@ -44,7 +37,7 @@ function HistorialTarea({ historial }) {
                         const esUltimo = index === historial.length - 1;
 
                         return (
-                            <li key={index} className="historial-tarea__item">
+                            <li key={evento.id ?? index} className="historial-tarea__item">
                                 {/* linea vertical */}
                                 {!esUltimo && (
                                     <span className="historial-tarea__linea" aria-hidden="true" />
@@ -62,7 +55,7 @@ function HistorialTarea({ historial }) {
                                             {TEXTO_ESTADO[evento.estado] ?? evento.estado}
                                         </Etiqueta>
                                         <small className="text-muted historial-tarea__fecha">
-                                            {evento.fecha}
+                                            {formatearFechaHora(evento.fecha)}
                                         </small>
                                     </div>
 

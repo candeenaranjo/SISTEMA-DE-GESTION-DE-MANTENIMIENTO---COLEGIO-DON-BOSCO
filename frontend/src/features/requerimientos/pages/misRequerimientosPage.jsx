@@ -14,6 +14,7 @@ const ESTILO_ESTADO = {
   finalizada:   { bg: 'var(--estado-finalizada-bg)', color: 'var(--estado-finalizada-texto)', label: 'Finalizado' },
   rechazada:    { bg: 'var(--estado-rechazada-bg)',  color: 'var(--estado-rechazada-texto)',  label: 'Rechazado' },
   cancelada:    { bg: 'var(--estado-cancelada-bg)',  color: 'var(--estado-cancelada-texto)',  label: 'Cancelado' },
+  resuelto:     { bg: 'var(--estado-finalizada-bg)', color: 'var(--estado-finalizada-texto)', label: 'Resuelto' },
 };
 
 const FILTROS_VACIOS = {
@@ -69,15 +70,14 @@ function MisRequerimientosPage() {
     };
   }, [recarga]);
 
-  const nombreCompleto = `${usuario?.nombre ?? ''} ${usuario?.apellido ?? ''}`.trim();
 
   const misRequerimientos = useMemo(() => {
     if (usuario?.rol === 'jefeMantenimiento') {
-      return requerimientos.filter((r) => r.reportadoPor === nombreCompleto);
+      return requerimientos.filter((r) => r.idUsuario === usuario?.id);
     }
 
     return requerimientos;
-  }, [requerimientos, usuario?.rol, nombreCompleto]);
+  }, [requerimientos, usuario?.rol, usuario?.id]);
 
   const lugares = useMemo(
     () => [...new Set(misRequerimientos.map((r) => r.lugar))].sort(),
@@ -144,11 +144,8 @@ function MisRequerimientosPage() {
             opciones: [
               { valor: 'todos', texto: 'Todos' },
               { valor: 'pendiente', texto: 'Pendiente' },
-              { valor: 'en-proceso', texto: 'En proceso' },
               { valor: 'asignado', texto: 'Asignado' },
-              { valor: 'finalizada', texto: 'Finalizado' },
-              { valor: 'rechazada', texto: 'Rechazado' },
-              { valor: 'cancelada', texto: 'Cancelado' },
+              { valor: 'resuelto', texto: 'Resuelto' },
             ],
           },
           {
