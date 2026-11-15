@@ -11,14 +11,31 @@ import "../styles/PanelInicioDirectivo.css";
 function PanelInicioDirectivo() {
   const usuario = useOutletContext();
   const [datos, setDatos] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    obtenerPanelDirectivo().then(setDatos);
+    let activo = true;
+
+    obtenerPanelDirectivo()
+      .then((d) => activo && setDatos(d))
+      .catch((e) => activo && setError(e.message));
+
+    return () => {
+      activo = false;
+    };
   }, []);
+
+  if (error) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        No pudimos cargar el panel: {error}
+      </div>
+    );
+  }
 
   if (!datos) return <p className="text-secondary">Cargando…</p>;
 
-  const { resumen, tareasEvaluacion, notificaciones } = datos;
+  const { resumen, tareasEvaluacion } = datos;
 
   return (
     <>

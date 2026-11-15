@@ -35,14 +35,14 @@ function InfoLaboralPersonal({ valores, errores, especialidades, onCambiar }) {
           {/* numero de matricula opcional */}
           <div className="col-12 col-md-6">
             <label className="form-label">
-              N° de Matricula (opcional)
+              N° de Matricula <span>(Opcional)</span>
             </label>
             <input type="text" className="form-control" placeholder="MP 34567" value={valores.matricula ?? ''} onChange={(e) => onCambiar('matricula', e.target.value)} />
           </div>
 
           {/* observaciones */}
           <div className="col-12">
-            <label className="form-label">Observaciones</label>
+            <label className="form-label">Observaciones <span>(Opcional)</span></label>
             <textarea
               className="form-control"
               rows={3}

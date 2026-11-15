@@ -1,32 +1,30 @@
+import { apiRequest } from '../../../shared/api/apiClient';
 
-
-// que tipos de notificacion ve cada rol
-const TIPOS_POR_ROL = {
-  jefeMantenimiento: ['requerimiento', 'tarea-aprobada', 'tarea-rechazada'],
-  directivo: ['tarea-finalizada', 'tarea-cancelada'],
-};
-
-// todas las notificaciones
-export function obtenerTodasLasNotificaciones() {
-  return data.notificaciones ?? [];
+// El backend devuelve la fecha en ISO; acá se muestra en la hora del navegador
+function formatear(n) {
+  const fecha = new Date(n.fecha);
+  return {
+    ...n,
+    fecha: fecha.toLocaleDateString('es-AR'),
+    hora: fecha.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }),
+  };
 }
 
-// solo las del rol indicado
-export function obtenerNotificaciones(rol) {
-  const todas = obtenerTodasLasNotificaciones();
-  if (!rol) return todas;
-  const tipos = TIPOS_POR_ROL[rol] ?? [];
-  return todas.filter((n) => tipos.includes(n.tipo));
+// Solo trae las notificaciones del usuario logueado (el backend ya filtra por usuario)
+export async function obtenerNotificaciones() {
+  const lista = await apiRequest('/notificaciones');
+  return lista.map(formatear);
 }
 
-export function contarNoLeidas(rol) {
-  return obtenerNotificaciones(rol).filter((n) => !n.leida).length;
+export async function contarNoLeidas() {
+  const lista = await apiRequest('/notificaciones', { query: { leida: false } });
+  return lista.length;
 }
 
-export function marcarComoLeida(id) {
-  console.log('Marcar como leída:', id);
+export async function marcarComoLeida(id) {
+  return formatear(await apiRequest(`/notificaciones/${id}`, { method: 'PUT' }));
 }
 
-export function marcarTodasComoLeidas() {
-  console.log('Marcar todas como leídas');
+export async function marcarTodasComoLeidas(ids) {
+  await Promise.all(ids.map((id) => marcarComoLeida(id)));
 }

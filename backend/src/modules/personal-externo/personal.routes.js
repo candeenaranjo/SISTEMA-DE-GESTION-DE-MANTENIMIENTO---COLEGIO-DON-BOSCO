@@ -20,6 +20,8 @@ router.param('id', (req, res, next, id) => {
 router.get('/', asyncHandler(controller.listar));
 router.get('/:id', asyncHandler(controller.obtener));
 
+// DNI, correo y género son opcionales: un valor vacío significa "sin dato". El formato de DNI y correo
+// se valida en el service, que acepta el texto vacío (el middleware validar no).
 router.post(
   '/',
   validar({
@@ -27,12 +29,6 @@ router.post(
     apellido: { requerido: true, tipo: 'string', min: 2, max: 100 },
     telefono: { requerido: true, tipo: 'string', min: 5, max: 25 },
     especialidad: { requerido: true, tipo: 'string', min: 3, max: 80 },
-    dni: {
-      tipo: 'string',
-      regex: /^[0-9.]+$/,
-      mensaje: 'El DNI debe contener solo números',
-    },
-    email: { tipo: 'email' },
     activo: { tipo: 'boolean' },
   }),
   asyncHandler(controller.crear),
@@ -45,12 +41,6 @@ router.put(
     apellido: { tipo: 'string', min: 2, max: 100 },
     telefono: { tipo: 'string', min: 5, max: 25 },
     especialidad: { tipo: 'string', min: 3, max: 80 },
-    dni: {
-      tipo: 'string',
-      regex: /^[0-9.]+$/,
-      mensaje: 'El DNI debe contener solo números',
-    },
-    email: { tipo: 'email' },
     activo: { tipo: 'boolean' },
   }),
   asyncHandler(controller.actualizar),

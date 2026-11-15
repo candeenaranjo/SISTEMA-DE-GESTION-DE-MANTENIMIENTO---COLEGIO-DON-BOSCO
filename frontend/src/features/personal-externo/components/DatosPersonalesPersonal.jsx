@@ -37,7 +37,7 @@ function DatosPersonalesPersonal({ valores, errores, onCambiar }) {
           {/* DNI */}
           <div className="col-12 col-md-6">
             <label className="form-label">
-              DNI <span className="text-danger">*</span>
+              DNI <span>(Opcional)</span>
             </label>
             <input type="text" className={`form-control ${errores.dni ? 'is-invalid' : ''}`} placeholder="28.765.432" value={valores.dni ?? ''} onChange={(e) => onCambiar('dni', e.target.value)} />
             {errores.dni && (
@@ -47,7 +47,7 @@ function DatosPersonalesPersonal({ valores, errores, onCambiar }) {
 
           {/* genero */}
           <div className="col-12 col-md-6">
-            <label className="form-label">Genero</label>
+            <label className="form-label">Genero <span>(Opcional)</span></label>
             <select className="form-select" value={valores.genero ?? ''} onChange={(e) => onCambiar('genero', e.target.value)} >
               <option value="">Sin especificar</option>
               {GENEROS.map((g) => (

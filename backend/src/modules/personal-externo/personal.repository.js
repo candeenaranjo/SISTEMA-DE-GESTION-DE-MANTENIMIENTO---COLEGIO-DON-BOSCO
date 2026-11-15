@@ -28,11 +28,12 @@ export async function listar({ especialidad, activo, busqueda } = {}) {
     condiciones.push(`e.nombre ILIKE $${valores.length}`);
   }
 
-  if (activo !== undefined) {
+  // undefined → solo activos | true/false → filtra | null → todos
+  if (activo === undefined) {
+    condiciones.push('p.activo = TRUE');
+  } else if (activo !== null) {
     valores.push(activo);
     condiciones.push(`p.activo = $${valores.length}`);
-  }else {
-    condiciones.push(`p.activo = TRUE`);
   }
 
   if (busqueda) {

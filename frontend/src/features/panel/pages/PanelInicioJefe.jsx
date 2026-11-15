@@ -84,7 +84,7 @@ function PanelInicioJefe() {
           <TarjetaResumen
             tono="con-tarea"
             icono={FaClipboardList}
-            etiqueta="Tareas totales"
+            etiqueta="Tareas pendientes"
             valor={resumen.tareasPendientes}
           />
         </div>

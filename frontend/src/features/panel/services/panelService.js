@@ -1,54 +1,33 @@
 import { apiRequest } from '../../../shared/api/apiClient';
-import { obtenerToken } from '../../auth/services/authService';
+import { obtenerRequerimientosPendientes } from '../../requerimientos/services/requerimientosService';
+import { obtenerTareas as obtenerTareasApi } from '../../tareas/services/tareasService';
 
-export async function obtenerResumenPanel() {
-  // Hacemos dos consultas en paralelo: estadísticas y requerimientos pendientes
-  const [estadisticas, requerimientos] = await Promise.all([
-    apiRequest('/estadisticas', { token: obtenerToken() }),
-    apiRequest('/requerimientos?estado=pendiente', { token: obtenerToken() }),
-  ]);
-
-  const kpis = estadisticas.kpis || [];
-  const getKpi = (clave) => kpis.find((k) => k.clave === clave)?.valor || 0;
-
-  return {
-    requerimientosPendientes: requerimientos.length, // Contamos los requerimientos pendientes reales
-    tareasPendientes: getKpi('en-proceso'), // Usamos el total en proceso
-    tareasEnProceso: getKpi('en-proceso'),
-    tareasDemoradas: getKpi('demoradas'),
-    tareasFinalizadas: getKpi('finalizadas'),
-    tareasRechazadas: getKpi('rechazadas'),
-  };
+// Cards del panel de inicio. El backend devuelve los indicadores del rol de quien consulta:
+//  Jefe:      { requerimientosPendientes, tareasPendientes, tareasEnProceso,
+//               tareasDemoradas, tareasFinalizadas, tareasRechazadas }
+//  Directivo: { pendientesEvaluacion, enProceso, finalizadas, rechazadas }
+export function obtenerResumenPanel() {
+  return apiRequest('/estadisticas/resumen');
 }
 
+// Tabla "Requerimientos recientes" del Jefe: los pendientes que todavía esperan una tarea.
+// Viene ya mapeado (fechaHora formateada, lugar, reportadoPor, etc.).
 export async function obtenerRequerimientosRecientes() {
-  // Traemos los requerimientos del backend (limitamos a los 10 más recientes)
-  const requerimientos = await apiRequest('/requerimientos', {
-    token: obtenerToken(),
-  });
-  return requerimientos.slice(0, 10); // Tomamos solo los primeros 10
+  const pendientes = await obtenerRequerimientosPendientes();
+  return pendientes.slice(0, 10);
 }
 
 export async function obtenerTareas() {
-  // Traemos las tareas del backend
-  const tareas = await apiRequest('/tareas', {
-    token: obtenerToken(),
-  });
-  return { tareas }; // El componente espera un objeto con la propiedad 'tareas'
+  const tareas = await obtenerTareasApi();
+  return { tareas }; // el componente espera { tareas }
 }
 
-export async function obtenerNotificaciones() {
-  const notificaciones = await apiRequest('/notificaciones', {
-    token: obtenerToken(),
-  });
-  return notificaciones;
-}
-
-// Esta función ya no se usa, pero la dejamos para que no rompa si alguna página la importa
+// Panel del Directivo: cards + tareas finalizadas que esperan su evaluación
 export async function obtenerPanelDirectivo() {
-  return {
-    resumen: {},
-    tareasEvaluacion: [],
-    notificaciones: [],
-  };
+  const [resumen, tareasEvaluacion] = await Promise.all([
+    obtenerResumenPanel(),
+    obtenerTareasApi({ estado: 'finalizada' }),
+  ]);
+
+  return { resumen, tareasEvaluacion };
 }

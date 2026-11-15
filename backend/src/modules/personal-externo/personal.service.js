@@ -1,12 +1,18 @@
 import { ApiError } from '../../utils/ApiError.js';
 import * as repository from './personal.repository.js';
 
+// DNI opcional: vacío = sin DNI. Si viene, solo números (se admiten puntos) y entre 7 y 10 dígitos.
 function normalizarDni(dni) {
   if (dni === undefined || dni === null || String(dni).trim() === '') {
     return null;
   }
 
-  const limpio = String(dni).replace(/\D/g, '');
+  const texto = String(dni).trim();
+  if (!/^[0-9.]+$/.test(texto)) {
+    throw new ApiError(400, 'El DNI debe contener solo números');
+  }
+
+  const limpio = texto.replace(/\D/g, '');
   if (limpio.length < 7 || limpio.length > 10) {
     throw new ApiError(400, 'El DNI debe tener entre 7 y 10 dígitos');
   }
@@ -14,13 +20,24 @@ function normalizarDni(dni) {
   return limpio;
 }
 
+// Correo opcional: vacío = sin correo. Si viene, tiene que tener formato válido.
+function normalizarEmail(email) {
+  if (email === undefined || email === null || String(email).trim() === '') {
+    return null;
+  }
+
+  const texto = String(email).trim().toLowerCase();
+  if (texto.length > 100 || !/^\S+@\S+\.\S+$/.test(texto)) {
+    throw new ApiError(400, 'El correo no tiene un formato válido');
+  }
+
+  return texto;
+}
+
 async function buscarPersonal(id) {
   const personal = await repository.obtenerPorId(id);
   if (!personal) {
     throw new ApiError(404, 'Personal externo no encontrado');
-  }
-   if (!personal.activo) {
-    throw new ApiError(404, 'Personal externo dado de baja');
   }
   return personal;
 }
@@ -39,6 +56,7 @@ export async function crear(datos) {
   const telefono = String(datos.telefono ?? '').trim();
   const especialidad = String(datos.especialidad ?? '').trim();
   const dni = normalizarDni(datos.dni);
+  const email = normalizarEmail(datos.email);
 
   if (!nombre || !apellido) {
     throw new ApiError(400, 'Nombre y apellido son obligatorios');
@@ -62,7 +80,7 @@ export async function crear(datos) {
     nombre,
     apellido,
     dni,
-    email: datos.email ? String(datos.email).trim().toLowerCase() : null,
+    email,
     telefono,
     idEspecialidad,
     matricula: datos.matricula ? String(datos.matricula).trim() : null,
@@ -83,6 +101,8 @@ export async function actualizar(id, datos) {
   ).trim();
   const dni =
     datos.dni !== undefined ? normalizarDni(datos.dni) : actual.dni;
+  const email =
+    datos.email !== undefined ? normalizarEmail(datos.email) : actual.email;
 
   if (!nombre || !apellido) {
     throw new ApiError(400, 'Nombre y apellido son obligatorios');
@@ -106,10 +126,7 @@ export async function actualizar(id, datos) {
     nombre,
     apellido,
     dni,
-    email:
-      datos.email !== undefined
-        ? String(datos.email).trim().toLowerCase() || null
-        : actual.email,
+    email,
     telefono,
     idEspecialidad,
     matricula:
@@ -130,7 +147,11 @@ export async function actualizar(id, datos) {
   return obtener(id);
 }
 
+// DELETE = baja lógica: se conserva el registro y el historial de tareas que tuvo asignadas
 export async function eliminar(id) {
-  await buscarPersonal(id);
+  const personal = await buscarPersonal(id);
+  if (!personal.activo) {
+    throw new ApiError(409, 'El personal externo ya está dado de baja');
+  }
   await repository.desactivar(id);
 }

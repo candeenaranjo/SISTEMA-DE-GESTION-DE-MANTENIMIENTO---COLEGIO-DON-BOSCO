@@ -155,12 +155,26 @@ export async function actualizar(id, datos, actor) {
   const prioridad = datos.prioridad ?? actual.prioridad;
   if (!PRIORIDADES.includes(prioridad)) throw new ApiError(400, 'La prioridad debe ser baja, media o alta');
 
-  // Si se indica un responsable, reemplaza al anterior (interno o externo): nunca quedan los dos
+  // El responsable se define al crear la tarea y no se cambia: para reasignar hay que cancelarla
+  // (se genera una tarea nueva pendiente, sin responsable). Solo se puede asignar si todavía no tiene.
   let idResponsable = actual.idResponsable;
   let idPersonalExterno = actual.idPersonalExterno;
   if (datos.idResponsable !== undefined || datos.idPersonalExterno !== undefined) {
-    ({ idResponsable, idPersonalExterno } = await resolverResponsable(datos));
-    if (!idResponsable && !idPersonalExterno) throw new ApiError(400, 'La tarea necesita un responsable');
+    const tieneResponsable = Boolean(actual.idResponsable || actual.idPersonalExterno);
+    if (tieneResponsable) {
+      const mismoResponsable =
+        normalizarId(datos.idResponsable) === (actual.idResponsable ?? null) &&
+        normalizarId(datos.idPersonalExterno) === (actual.idPersonalExterno ?? null);
+      if (!mismoResponsable) {
+        throw new ApiError(
+          409,
+          'No se puede cambiar el responsable de una tarea asignada: para reasignarla, cancelala y se genera una tarea nueva pendiente',
+        );
+      }
+    } else {
+      ({ idResponsable, idPersonalExterno } = await resolverResponsable(datos));
+      if (!idResponsable && !idPersonalExterno) throw new ApiError(400, 'La tarea necesita un responsable');
+    }
   }
 
   await repository.actualizar(id, {

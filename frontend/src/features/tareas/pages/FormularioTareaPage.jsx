@@ -210,16 +210,20 @@ function FormularioTareaPage() {
 
   const tareaCerrada = modoEdicion && ESTADOS_FINALES.includes(tarea?.estado);
 
+  // Una vez asignado, el responsable no se cambia (para reasignar se cancela la tarea).
+  // Solo la tarea generada por una cancelación, que nace sin responsable, permite asignarlo.
+  const asignacionBloqueada = modoEdicion && Boolean(tarea?.idResponsable || tarea?.idPersonalExterno);
+
   async function manejarGuardar() {
     if (tareaCerrada) {
       mostrarToast(`La tarea está ${tarea.estado} y no se puede modificar`, 'danger');
       return;
     }
-    if (valores.tipoAsignacion === 'interno' && !valores.idResponsable) {
+    if (!asignacionBloqueada && valores.tipoAsignacion === 'interno' && !valores.idResponsable) {
       mostrarToast('Elegí el personal interno responsable', 'danger');
       return;
     }
-    if (valores.tipoAsignacion === 'externo' && !valores.idPersonalExterno) {
+    if (!asignacionBloqueada && valores.tipoAsignacion === 'externo' && !valores.idPersonalExterno) {
       mostrarToast('Elegí el personal externo responsable', 'danger');
       return;
     }
@@ -252,7 +256,7 @@ function FormularioTareaPage() {
         await actualizarTarea(id, {
           prioridad: valores.prioridad,
           observaciones: valores.observaciones,
-          ...armarResponsable(),
+          ...(asignacionBloqueada ? {} : armarResponsable()),
         });
 
         // 2) Estado, solo si cambió
@@ -424,6 +428,8 @@ function FormularioTareaPage() {
             valores={valores}
             internos={internosOrdenanza}
             deshabilitado={tareaCerrada}
+            asignacionBloqueada={asignacionBloqueada}
+            responsable={tarea?.responsable}
             externos={externos}
             valorSelectPersonal={valorSelectPersonal}
             compra={compra}

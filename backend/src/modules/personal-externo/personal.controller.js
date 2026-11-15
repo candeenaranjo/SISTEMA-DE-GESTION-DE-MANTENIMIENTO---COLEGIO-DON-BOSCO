@@ -1,13 +1,17 @@
 import * as service from './personal.service.js';
 
+// activo: "true" | "false" | "todos". Sin el parámetro, solo activos
+function leerActivo(valor) {
+  if (valor === undefined) return undefined;
+  if (valor === 'todos') return null;
+  return valor === 'true' || valor === '1';
+}
+
 export async function listar(req, res) {
   const { especialidad, activo, busqueda } = req.query;
   const personal = await service.listar({
     especialidad,
-    activo:
-      activo === undefined
-        ? undefined
-        : activo === 'true' || activo === '1',
+    activo: leerActivo(activo),
     busqueda,
   });
 

@@ -1,44 +1,66 @@
-import { leer, guardar } from '../../../shared/utils/storage';
+import { apiRequest } from '../../../shared/api/apiClient';
 
-const CLAVE = 'personalExterno';
+const BASE = '/personal-externos';
 
-// vuelve el listado completo, lee del localStorage, si no hay nada, usa el JSON 
-export function obtenerPersonal() {
-  return leer(CLAVE, dataInicial.personalExterno ?? []);
+const codigoPersonal = (id) => `EXT-${String(id).padStart(3, '0')}`;
+
+function formatearFecha(valor) {
+  if (!valor) return '';
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) return String(valor);
+  return fecha.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-// devuelve las especialidades
-export function obtenerEspecialidades() {
-  const personal = obtenerPersonal();
-  const especialidades = personal.map((p) => p.especialidad);
-  return [...new Set(especialidades)].sort();
+// El id numérico se mantiene (lo usan las rutas y la API); `codigo` es el texto para mostrar (EXT-001).
+function mapearPersonal(p) {
+  return { ...p, codigo: codigoPersonal(p.id), fechaAlta: formatearFecha(p.fechaAlta) };
 }
 
-// busca por id
-export function obtenerPersonalPorId(id) {
-  return obtenerPersonal().find((p) => p.id === id);
+// Cuerpo para crear o modificar. DNI, correo y género son opcionales: un texto vacío significa
+// "sin dato" y el backend lo guarda como null (así también se puede borrar un dato al editar).
+function armarCuerpo(valores) {
+  const cuerpo = {
+    nombre: (valores.nombre ?? '').trim(),
+    apellido: (valores.apellido ?? '').trim(),
+    telefono: (valores.telefono ?? '').trim(),
+    especialidad: (valores.especialidad ?? '').trim(),
+    matricula: (valores.matricula ?? '').trim(),
+    dni: (valores.dni ?? '').trim(),
+    email: (valores.email ?? '').trim(),
+    genero: valores.genero ?? '',
+    observaciones: (valores.observaciones ?? '').trim(),
+  };
+  if (typeof valores.activo === 'boolean') cuerpo.activo = valores.activo;
+  return cuerpo;
 }
 
-// crea un nuevo personal
-export function crearPersonal(datos) {
-  const actual = obtenerPersonal();
-  const nuevoId = `EXT-${String(actual.length + 1).padStart(3, '0')}`;
-  const nuevo = { id: nuevoId, ...datos, activo: datos.activo ?? true, fechaAlta: new Date().toLocaleDateString('es-AR'), };
-  guardar(CLAVE, [...actual, nuevo]);
-  return nuevo;
+// Listado completo (activos e inactivos): los filtros por estado se aplican en pantalla
+export async function obtenerPersonal(filtros = {}) {
+  const personal = await apiRequest(BASE, { query: { activo: 'todos', ...filtros } });
+  return personal.map(mapearPersonal);
 }
 
-// actualiza/modifica personal existente
-export function actualizarPersonal(id, datos) {
-  const actual = obtenerPersonal();
-  const actualizado = actual.map((p) => p.id === id ? { ...p, ...datos } : p );
-  guardar(CLAVE, actualizado);
-  return actualizado.find((p) => p.id === id);
+export async function obtenerEspecialidades() {
+  const personal = await obtenerPersonal();
+  return [...new Set(personal.map((p) => p.especialidad))].sort();
 }
 
-//elimina un personal
-export function eliminarPersonal(id) {
-  const actual = obtenerPersonal();
-  const filtrado = actual.filter((p) => p.id !== id);
-  guardar(CLAVE, filtrado);
+export async function obtenerPersonalPorId(id) {
+  return mapearPersonal(await apiRequest(`${BASE}/${id}`));
+}
+
+export async function crearPersonal(valores) {
+  const creado = await apiRequest(BASE, { method: 'POST', body: armarCuerpo(valores) });
+  return mapearPersonal(creado);
+}
+
+export async function actualizarPersonal(id, valores) {
+  const actualizado = await apiRequest(`${BASE}/${id}`, { method: 'PUT', body: armarCuerpo(valores) });
+  return mapearPersonal(actualizado);
+}
+
+// Baja lógica (DELETE): se conserva el registro y el historial de tareas que tuvo asignadas.
+// Para volver a darlo de alta se usa actualizarPersonal(id, { ...valores, activo: true }).
+export async function eliminarPersonal(id) {
+  await apiRequest(`${BASE}/${id}`, { method: 'DELETE' });
 }

@@ -1,5 +1,5 @@
 import SeccionCompra from './SeccionCompra';
-import { FaScrewdriverWrench, FaUsers, FaPhone, FaUserTie, FaBuilding, FaUserShield } from 'react-icons/fa6';
+import { FaScrewdriverWrench, FaUsers, FaPhone, FaUserTie, FaBuilding, FaUserShield, FaLock } from 'react-icons/fa6';
 import '../styles/DatosTarea.css';
 
 const MAX_OBSERVACIONES = 300;
@@ -10,13 +10,23 @@ const TIPOS_ASIGNACION = [
   { valor: 'externo', id: 'tipoExterno', Icono: FaBuilding, texto: 'Asignar a personal externo' },
 ];
 
+const TEXTO_TIPO = {
+  jefe: 'Jefe de Mantenimiento',
+  interno: 'Personal interno (ordenanza)',
+  externo: 'Personal externo',
+};
+
 const nombreCompleto = (p) => [p.nombre, p.apellido].filter(Boolean).join(' ');
 
 // internos / externos: listas que vienen del backend ({ id, nombre, apellido, telefono, especialidad? }).
 // valorSelectPersonal: "int-<id>" o "ext-<id>" (o '' si todavía no se eligió a nadie).
+// asignacionBloqueada: la tarea ya tiene responsable y no se puede cambiar (para reasignar se cancela la tarea).
+// responsable: { nombre, tipo } de la tarea, para mostrarlo cuando la asignación está bloqueada.
 function DatosTarea({
   modoEdicion,
   deshabilitado = false,
+  asignacionBloqueada = false,
+  responsable = null,
   valores,
   internos = [],
   externos = [],
@@ -84,80 +94,95 @@ function DatosTarea({
             <FaUsers /> Asignación y recursos
           </h6>
 
-          {/* quién la realiza: se puede elegir al crear y reasignar mientras la tarea esté abierta */}
-          <div className="mb-3">
-            <label className="form-label d-block">¿Quién realizará la tarea?</label>
-
-            {TIPOS_ASIGNACION.map(({ valor, id, Icono, texto }) => (
-              <div className="form-check" key={valor}>
-                <input
-                  className="form-check-input"
-                  type="radio"
-                  name="tipoAsignacion"
-                  id={id}
-                  value={valor}
-                  checked={valores.tipoAsignacion === valor}
-                  disabled={deshabilitado}
-                  onChange={(e) => onCambiar('tipoAsignacion', e.target.value)}
-                />
-                <label className="form-check-label d-flex align-items-center gap-2" htmlFor={id}>
-                  <Icono size={14} /> {texto}
-                </label>
-              </div>
-            ))}
-
-            {modoEdicion && !deshabilitado && (
-              <small className="text-muted d-block mt-2">
-                Podés reasignar el responsable mientras la tarea no esté cerrada.
+          {asignacionBloqueada ? (
+            /* La tarea ya tiene responsable: solo se muestra */
+            <div className="mb-3">
+              <label className="form-label">Asignada a</label>
+              <div className="fw-semibold">{responsable?.nombre ?? '—'}</div>
+              <small className="text-muted d-block">
+                {TEXTO_TIPO[valores.tipoAsignacion] ?? ''}
+                {valores.telefono ? ` · ${valores.telefono}` : ''}
               </small>
-            )}
-          </div>
-
-          {/* responsable (interno o externo) + teléfono de contacto */}
-          {valores.tipoAsignacion !== 'jefe' && (
-            <div className="row g-3 mb-3">
-              <div className="col-12 col-md-6">
-                <label className="form-label">
-                  {esInterno ? 'Personal interno (ordenanza)' : 'Personal externo'}
-                </label>
-                <div className="input-group">
-                  <span className="input-group-text bg-white">
-                    <FaUsers className="text-muted" />
-                  </span>
-                  <select
-                    className="form-select"
-                    value={valorSelectPersonal}
-                    disabled={deshabilitado}
-                    onChange={(e) => onSeleccionarPersonal(e.target.value)}
-                  >
-                    <option value="">Seleccioná un responsable</option>
-                    {lista.map((p) => (
-                      <option key={p.id} value={`${prefijo}-${p.id}`}>
-                        {nombreCompleto(p)}
-                        {p.especialidad ? ` — ${p.especialidad}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="col-12 col-md-6">
-                <label className="form-label">Teléfono / contacto</label>
-                <div className="input-group">
-                  <span className="input-group-text bg-white">
-                    <FaPhone className="text-muted" />
-                  </span>
-                  {/* Solo informativo: sale de la ficha de la persona elegida */}
-                  <input
-                    type="tel"
-                    className="form-control"
-                    placeholder="Se completa al elegir al responsable"
-                    value={valores.telefono ?? ''}
-                    readOnly
-                  />
-                </div>
+              <div className="alert alert-secondary small d-flex gap-2 mt-3 mb-0">
+                <FaLock className="flex-shrink-0 mt-1" />
+                <span>
+                  El responsable no se puede cambiar. Si hay que reasignar la tarea, cancelala: se genera
+                  una tarea nueva pendiente para asignarle otro personal.
+                </span>
               </div>
             </div>
+          ) : (
+            <>
+              {/* quién la realiza */}
+              <div className="mb-3">
+                <label className="form-label d-block">¿Quién realizará la tarea?</label>
+
+                {TIPOS_ASIGNACION.map(({ valor, id, Icono, texto }) => (
+                  <div className="form-check" key={valor}>
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="tipoAsignacion"
+                      id={id}
+                      value={valor}
+                      checked={valores.tipoAsignacion === valor}
+                      disabled={deshabilitado}
+                      onChange={(e) => onCambiar('tipoAsignacion', e.target.value)}
+                    />
+                    <label className="form-check-label d-flex align-items-center gap-2" htmlFor={id}>
+                      <Icono size={14} /> {texto}
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              {/* responsable (interno o externo) + teléfono de contacto */}
+              {valores.tipoAsignacion !== 'jefe' && (
+                <div className="row g-3 mb-3">
+                  <div className="col-12 col-md-6">
+                    <label className="form-label">
+                      {esInterno ? 'Personal interno (ordenanza)' : 'Personal externo'}
+                    </label>
+                    <div className="input-group">
+                      <span className="input-group-text bg-white">
+                        <FaUsers className="text-muted" />
+                      </span>
+                      <select
+                        className="form-select"
+                        value={valorSelectPersonal}
+                        disabled={deshabilitado}
+                        onChange={(e) => onSeleccionarPersonal(e.target.value)}
+                      >
+                        <option value="">Seleccioná un responsable</option>
+                        {lista.map((p) => (
+                          <option key={p.id} value={`${prefijo}-${p.id}`}>
+                            {nombreCompleto(p)}
+                            {p.especialidad ? ` — ${p.especialidad}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="col-12 col-md-6">
+                    <label className="form-label">Teléfono / contacto</label>
+                    <div className="input-group">
+                      <span className="input-group-text bg-white">
+                        <FaPhone className="text-muted" />
+                      </span>
+                      {/* Solo informativo: sale de la ficha de la persona elegida */}
+                      <input
+                        type="tel"
+                        className="form-control"
+                        placeholder="Se completa al elegir al responsable"
+                        value={valores.telefono ?? ''}
+                        readOnly
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -77,7 +77,7 @@ CREATE TABLE personal_externo (
   id_personal INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL,
   apellido VARCHAR(100) NOT NULL,
-  dni VARCHAR(10) NOT NULL UNIQUE,
+  dni VARCHAR(10) UNIQUE,
   email VARCHAR(100),
   telefono VARCHAR(25) NOT NULL,
   id_especialidad INTEGER NOT NULL REFERENCES especialidades(id_especialidad),

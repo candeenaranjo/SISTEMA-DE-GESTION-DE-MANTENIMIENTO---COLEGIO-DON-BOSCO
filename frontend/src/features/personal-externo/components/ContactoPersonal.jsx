@@ -24,7 +24,7 @@ function ContactoPersonal({ valores, errores, onCambiar }) {
           {/* Email */}
           <div className="col-12 col-md-6">
             <label className="form-label">
-              Correo electrónico <span className="text-danger">*</span>
+              Correo electrónico <span>(Opcional)</span>
             </label>
             <input type="email" className={`form-control ${errores.email ? 'is-invalid' : ''}`} placeholder="ejemplo@correo.com" value={valores.email ?? ''} onChange={(e) => onCambiar('email', e.target.value)} />
             {errores.email && (
