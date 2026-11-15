@@ -38,7 +38,7 @@ export async function apiRequest(
   path,
   { method = 'GET', body, query, token = leerToken(), signal } = {},
 ) {
-  const headers = {};
+  const headers = { 'ngrok-skip-browser-warning': '1' };
 
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
