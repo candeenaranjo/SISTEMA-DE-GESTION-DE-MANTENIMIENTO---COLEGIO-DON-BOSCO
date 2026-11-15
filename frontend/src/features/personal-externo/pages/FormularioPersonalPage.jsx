@@ -2,13 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router';
 import { FaUsers } from 'react-icons/fa6';
 import '../styles/FormularioPersonalPage.css';
-
-import {
-  obtenerPersonalPorId,
-  crearPersonal,
-  actualizarPersonal,
-  eliminarPersonal,
-} from '../services/personalService';
+import { obtenerPersonalPorId, crearPersonal, actualizarPersonal, eliminarPersonal, } from '../services/personalService';
 import { useToast } from '../../../shared/context/ToastContext';
 import ModalConfirmacion from '../../../shared/components/ModalConfirmacion';
 import Encabezado from '../../../shared/components/EncabezadoPagina';
