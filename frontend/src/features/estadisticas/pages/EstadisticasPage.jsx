@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import {
   FaChartColumn, FaFileLines, FaCircleCheck, FaClock, FaHourglassHalf,
@@ -58,8 +59,9 @@ function EstadisticasPage() {
     );
   }
 
-  if (!datos) return <p className="text-secondary">Cargando…</p>;
+  if (!datos) return <p className="text-secondary p-4">Cargando estadísticas…</p>;
 
+  // Cálculos seguros por si las listas vienen vacías
   const totalSectores = suma(datos.sectores, 'cantidad');
   const maxSector = Math.max(1, ...datos.sectores.map((s) => s.cantidad));
   const totalTareas = suma(datos.estadoTareas, 'valor');
@@ -67,26 +69,17 @@ function EstadisticasPage() {
   const { dias, variacion } = datos.tiempoResolucion;
 
   return (
-    <div className="estadisticas">
+    <div className="estadisticas container-fluid">
       <EncabezadoPagina
         icono={FaChartColumn}
         titulo="Estadísticas"
         subtitulo="Indicadores y métricas del sistema de mantenimiento"
         tono="secundario"
       >
-        <select
-          className="form-select"
-          value={periodo}
-          onChange={(e) => setPeriodo(Number(e.target.value))}
-        >
-          {PERIODOS.map((p) => (
-            <option key={p.valor} value={p.valor}>{p.texto}</option>
-          ))}
-        </select>
       </EncabezadoPagina>
 
-      {/* KPIs */}
-      <div className="row row-cols-2 row-cols-md-3 row-cols-xl-6 g-3 mb-4">
+      {/* FILA 1: KPIs (Ocupan todo el ancho disponible) */}
+      <div className="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-6 g-3 mb-4">
         {datos.kpis.map((k) => {
           const { icono, tono } = KPI_CONFIG[k.clave];
           return (
@@ -97,14 +90,14 @@ function EstadisticasPage() {
                 etiqueta={k.etiqueta}
                 valor={k.formato === 'moneda' ? moneda(k.valor) : k.valor}
               >
-                <div className="kpi-variacion">
+                <div className="kpi-variacion mt-2">
                   {k.variacion === null ? (
-                    <small>Situación actual</small>
+                    <small className="text-muted">Situación actual</small>
                   ) : (
-                    <>
+                    <div className="d-flex align-items-center gap-1">
                       <Variacion valor={k.variacion} subeEsBueno={k.subeEsBueno} />
-                      <small>vs. período anterior</small>
-                    </>
+                      <small className="text-muted" style={{ fontSize: '0.75rem' }}>vs. período ant.</small>
+                    </div>
                   )}
                 </div>
               </TarjetaResumen>
@@ -113,132 +106,160 @@ function EstadisticasPage() {
         })}
       </div>
 
-      <div className="row g-3 mb-3">
-        {/* Sectores más afectados (tareas por sector) */}
-        <div className="col-xl-4">
+      {/* FILA 2: Gráficos Principales (3 columnas) */}
+      <div className="row g-4 mb-4">
+        {/* Sectores */}
+        <div className="col-lg-6 col-xl-4">
           <SeccionCard
+            className="h-100"
             icono={FaLocationDot}
             titulo="Sectores más afectados"
-            subtitulo="Espacios donde se reportaron más tareas."
+            subtitulo="Espacios con más tareas reportadas."
           >
-            <ul className="barras-sectores">
-              {datos.sectores.map((s, i) => (
-                <li key={s.nombre}>
-                  <span className="barras-sectores__nombre">{s.nombre}</span>
-                  <div className="barras-sectores__pista">
-                    <div
-                      className="barras-sectores__barra"
-                      style={{
-                        width: `${(s.cantidad / maxSector) * 100}%`,
-                        opacity: 1 - i * 0.1,
-                      }}
-                    />
-                  </div>
-                  <span className="barras-sectores__valor">
-                    {s.cantidad} ({porcentaje(s.cantidad, totalSectores)}%)
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </SeccionCard>
-        </div>
-
-        {/* Empleados con más tareas */}
-        <div className="col-xl-4">
-          <SeccionCard
-            icono={FaUsers}
-            titulo="Empleados con más tareas"
-            subtitulo="Personal interno (Jefe y Ordenanza) con más tareas asignadas en el período."
-          >
-            <ul className="barras-sectores">
-              {datos.personal.map((p, i) => (
-                <li key={p.nombre}>
-                  <span className="barras-sectores__nombre">{p.nombre}</span>
-                  <div className="barras-sectores__pista">
-                    <div
-                      className="barras-sectores__barra"
-                      style={{
-                        width: `${(p.realizadas / maxTareasEmpleado) * 100}%`,
-                        opacity: 1 - i * 0.1,
-                      }}
-                    />
-                  </div>
-                  <span className="barras-sectores__valor">
-                    {p.realizadas} ({p.tasa}% aprob.)
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </SeccionCard>
-        </div>
-
-        {/* Evolución de gastos (una sola serie: suma total por mes) */}
-        <div className="col-xl-4">
-          <SeccionCard
-            icono={FaChartLine}
-            titulo="Evolución de gastos"
-            subtitulo="Gasto total mensual registrado en compras."
-          >
-            <GraficoLineas
-              etiquetas={datos.evolucionGastos.meses}
-              series={datos.evolucionGastos.series}
-              colores={COLOR_GASTO}
-              formato={moneda}
-            />
-          </SeccionCard>
-        </div>
-
-        {/* Estado actual de tareas */}
-        <div className="col-xl-4">
-          <SeccionCard
-            icono={FaChartPie}
-            titulo="Estado actual de tareas"
-            subtitulo="Tareas creadas en el período, según su estado actual."
-          >
-            <div className="gastos">
-              <Dona datos={datos.estadoTareas} total={totalTareas} etiqueta="Tareas" tamano={170} />
-              <ul className="leyenda">
-                {datos.estadoTareas.map((e) => (
-                  <li key={e.clave}>
-                    <span
-                      className="leyenda-punto"
-                      style={{ background: colorDeEstado(e.clave) }}
-                    />
-                    <span className="leyenda__nombre">{e.estado}</span>
-                    <span>{e.valor}</span>
-                    <span className="leyenda__pct">({porcentaje(e.valor, totalTareas)}%)</span>
+            {datos.sectores.length === 0 ? (
+              <p className="text-muted text-center py-5">Sin datos en este período</p>
+            ) : (
+              <ul className="barras-sectores">
+                {datos.sectores.map((s, i) => (
+                  <li key={s.nombre}>
+                    <span className="barras-sectores__nombre">{s.nombre}</span>
+                    <div className="barras-sectores__pista">
+                      <div
+                        className="barras-sectores__barra"
+                        style={{
+                          width: `${(s.cantidad / maxSector) * 100}%`,
+                          opacity: 1 - i * 0.1,
+                        }}
+                      />
+                    </div>
+                    <span className="barras-sectores__valor">
+                      {s.cantidad} ({porcentaje(s.cantidad, totalSectores)}%)
+                    </span>
                   </li>
                 ))}
               </ul>
-            </div>
+            )}
           </SeccionCard>
         </div>
 
-        {/* Tiempo promedio de resolución */}
+        {/* Empleados */}
+        <div className="col-lg-6 col-xl-4">
+          <SeccionCard
+            className="h-100"
+            icono={FaUsers}
+            titulo="Empleados con más tareas"
+            subtitulo="Personal interno con más tareas asignadas."
+          >
+            {datos.personal.length === 0 ? (
+              <p className="text-muted text-center py-5">Sin datos en este período</p>
+            ) : (
+              <ul className="barras-sectores">
+                {datos.personal.map((p, i) => (
+                  <li key={p.nombre}>
+                    <span className="barras-sectores__nombre">{p.nombre}</span>
+                    <div className="barras-sectores__pista">
+                      <div
+                        className="barras-sectores__barra"
+                        style={{
+                          width: `${(p.realizadas / maxTareasEmpleado) * 100}%`,
+                          opacity: 1 - i * 0.1,
+                        }}
+                      />
+                    </div>
+                    <span className="barras-sectores__valor">
+                      {p.realizadas} ({p.tasa}% aprob.)
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SeccionCard>
+        </div>
+
+        {/* Evolución de Gastos */}
         <div className="col-xl-4">
           <SeccionCard
+            className="h-100"
+            icono={FaChartLine}
+            titulo="Evolución de gastos"
+            subtitulo="Gasto total mensual registrado."
+          >
+            <div className="d-flex justify-content-center align-items-center h-100">
+              <GraficoLineas
+                etiquetas={datos.evolucionGastos.meses}
+                series={datos.evolucionGastos.series}
+                colores={COLOR_GASTO}
+                formato={moneda}
+              />
+            </div>
+          </SeccionCard>
+        </div>
+      </div>
+
+      {/* FILA 3: Dona y Tiempo (2 columnas grandes) */}
+      <div className="row g-4">
+        {/* Estado de tareas */}
+        <div className="col-lg-6">
+          <SeccionCard
+            className="h-100"
+            icono={FaChartPie}
+            titulo="Estado actual de tareas"
+            subtitulo="Tareas creadas en el período."
+          >
+            {totalTareas === 0 ? (
+              <p className="text-muted text-center py-5">Sin tareas en este período</p>
+            ) : (
+              <div className="gastos d-flex flex-column flex-md-row align-items-center gap-4">
+                <Dona datos={datos.estadoTareas} total={totalTareas} etiqueta="Tareas" tamano={200} />
+                <ul className="leyenda flex-grow-1 mb-0">
+                  {datos.estadoTareas.map((e) => (
+                    <li key={e.clave} className="mb-2">
+                      <span className="leyenda-punto" style={{ background: colorDeEstado(e.clave) }} />
+                      <span className="leyenda__nombre fw-medium">{e.estado}</span>
+                      <span className="ms-auto badge bg-light text-dark border">{e.valor}</span>
+                      <span className="leyenda__pct text-muted ms-2">({porcentaje(e.valor, totalTareas)}%)</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </SeccionCard>
+        </div>
+
+        {/* Tiempo de resolución */}
+        <div className="col-lg-6">
+          <SeccionCard
+            className="h-100"
             icono={FaClock}
             titulo="Tiempo promedio de resolución"
-            subtitulo="Desde la creación hasta la finalización de la tarea."
+            subtitulo="Desde la creación hasta la finalización."
           >
-            <div className="tiempo">
-              <span className="tiempo__icono"><FaCalendarCheck /></span>
-              <div>
-                <strong>{dias.toLocaleString('es-AR')} días</strong>
-                <Variacion valor={variacion} subeEsBueno={false} />
-                <small className="d-block text-secondary">vs. período anterior</small>
+            <div className="d-flex flex-column justify-content-center h-100 p-3">
+              <div className="d-flex align-items-center gap-3 mb-4">
+                <span className="tiempo__icono bg-primary-subtle text-primary p-3 rounded-circle fs-3">
+                  <FaCalendarCheck />
+                </span>
+                <div>
+                  <h2 className="mb-0 fw-bold fs-1">{dias} <span className="fs-5 text-muted">días</span></h2>
+                  <div className="d-flex align-items-center gap-2 mt-1">
+                    <Variacion valor={variacion} subeEsBueno={false} />
+                    <small className="text-secondary">vs. período anterior</small>
+                  </div>
+                </div>
+              </div>
+              <div className="alert alert-info border-0 d-flex gap-2 align-items-start m-0">
+                <FaLightbulb className="mt-1 flex-shrink-0" />
+                <small>
+                  El tiempo de resolución{' '}
+                  {variacion === 0
+                    ? 'se mantuvo igual'
+                    : variacion < 0
+                      ? `mejoró un ${Math.abs(variacion)}%`
+                      : `empeoró un ${variacion}%`}{' '}
+                  en comparación con el período anterior.
+                </small>
               </div>
             </div>
-            <p className="tiempo__nota">
-              <FaLightbulb aria-hidden="true" />
-              El tiempo de resolución{' '}
-              {variacion === 0
-                ? 'se mantuvo igual'
-                : variacion < 0
-                  ? `mejoró un ${Math.abs(variacion)}%`
-                  : `empeoró un ${variacion}%`}{' '}
-              en comparación con el período anterior.
-            </p>
           </SeccionCard>
         </div>
       </div>

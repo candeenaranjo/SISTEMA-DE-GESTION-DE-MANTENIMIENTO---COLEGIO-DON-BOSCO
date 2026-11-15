@@ -30,7 +30,7 @@ function TablaEvaluacion({ tareas }) {
       (t) =>
         (!texto || normalizar(`${t.id} ${t.titulo} ${t.requerimientoId} ${t.lugar}`).includes(texto)) &&
         (!filtros.lugar || t.lugar === filtros.lugar) &&
-        (!filtros.fecha || t.fechaFinalizacion.slice(0, 10) === filtros.fecha)
+        (!filtros.fecha || t.fechaFin?.slice(0, 10) === filtros.fecha)
     );
   }, [tareas, filtros]);
 
@@ -100,16 +100,16 @@ function TablaEvaluacion({ tareas }) {
                 <td>{t.id}</td>
                 <td>
                   <strong>{t.titulo}</strong>
-                  <small className="d-block text-secondary">{t.requerimientoId}</small>
+                  <small className="d-block text-secondary">{t.idRequerimiento}</small>
                 </td>
                 <td>
                   <FaLocationDot className="tabla-evaluacion__pin" /> {t.lugar}
                 </td>
                 <td>
-                  {t.responsable}
-                  <small className="d-block text-secondary">({t.tipoResponsable})</small>
+                  {t.responsable?.nombre}
+                  <small className="d-block text-secondary">({t.responsable?.tipo})</small>
                 </td>
-                <td>{formatoFecha(t.fechaFinalizacion)}</td>
+                <td>{formatoFecha(t.fechaFin)}</td>
                 <td><Etiqueta estado={t.estado}>Finalizada</Etiqueta></td>
                 <td>
                   <button

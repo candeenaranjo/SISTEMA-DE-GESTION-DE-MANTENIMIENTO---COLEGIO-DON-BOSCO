@@ -11,7 +11,7 @@ function PanelInicioPage() {
   }
 
   if (usuario.rol === "ordenanza") {
-    return <Navigate to="/gestor/requerimientos/nuevo-requerimiento" replace />;
+    return <Navigate to="/gestor/mis-asignaciones" replace />;
   }
 
   if (usuario.rol === "directivo") return < PanelInicioDirectivo />;

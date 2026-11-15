@@ -2,10 +2,17 @@ const ANCHO = 420;
 const ALTO = 220;
 const M = { arriba: 12, derecha: 16, abajo: 28, izquierda: 62 };
 
-function GraficoLineas({ etiquetas, series, colores, paso = 100000, formato = (n) => n }) {
-  const maximo = Math.max(...series.flatMap((s) => s.valores));
-  const tope = Math.max(paso, Math.ceil(maximo / paso) * paso);
-  const marcas = Array.from({ length: tope / paso + 1 }, (_, i) => i * paso);
+function GraficoLineas({ etiquetas, series, colores, formato = (n) => n }) {
+  // Encontrar el valor máximo real
+  const maximo = Math.max(1, ...series.flatMap((s) => s.valores));
+  
+  // Calcular un "paso" lindo automático (para que no sea siempre 100000)
+  const crudo = maximo / 4;
+  const potencia = Math.pow(10, Math.floor(Math.log10(crudo)));
+  const paso = Math.ceil(crudo / potencia) * potencia;
+  
+  const tope = Math.ceil(maximo / paso) * paso || 1000;
+  const marcas = Array.from({ length: Math.round(tope / paso) + 1 }, (_, i) => i * paso);
 
   const anchoUtil = ANCHO - M.izquierda - M.derecha;
   const altoUtil = ALTO - M.arriba - M.abajo;

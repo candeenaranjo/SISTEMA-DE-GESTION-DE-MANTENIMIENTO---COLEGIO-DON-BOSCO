@@ -4,6 +4,7 @@ export const MENU_POR_ROL = {
   ordenanza: [
     { id: 1, destino: "/gestor/requerimientos/nuevo-requerimiento", texto: "Emitir requerimiento", icono: FaCirclePlus },
     { id: 2, destino: "/gestor/requerimientos/mis-requerimientos", texto: "Mis requerimientos", icono: FaClipboardCheck },
+    { id: 3, texto: "Mis Asignaciones", destino: "/gestor/mis-asignaciones", icono: FaScrewdriverWrench },
   ],
   jefeMantenimiento: [
     { id: 1, destino: "/gestor", texto: "Inicio", icono: FaHouse, exacta: true },

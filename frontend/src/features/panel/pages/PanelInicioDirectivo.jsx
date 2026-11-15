@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router";
-import { FaUserTie, FaClipboardCheck, FaHouse, FaClock, FaCircleCheck, FaCircleXmark, FaFileLines, } from "react-icons/fa6";
+import { FaHouse,FaCircleCheck, FaCircleXmark, FaFileLines, FaFileCirclePlus,FaRotate } from "react-icons/fa6";
 import TarjetaResumen from "../../../shared/components/TarjetaResumen";
 import SeccionCard from "../../../shared/components/SeccionCard";
 import TablaEvaluacion from "../components/TablaEvaluacion";
@@ -48,16 +48,16 @@ function PanelInicioDirectivo() {
       <div className="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3 mb-4">
         <div className="col">
           <TarjetaResumen
-            tono="en-proceso"
-            icono={FaClipboardCheck}
-            etiqueta="Tareas pendientes de evaluación"
-            valor={resumen.pendientesEvaluacion}
+            tono="pendiente"
+            icono={FaFileCirclePlus}
+            etiqueta="Requerimientos pendientes"
+            valor={resumen.requerimientosPendientes}
           />
         </div>
         <div className="col">
           <TarjetaResumen
-            tono="pendiente"
-            icono={FaClock}
+            tono="en-proceso"
+            icono={FaRotate}
             etiqueta="Tareas en proceso"
             valor={resumen.enProceso}
           />

@@ -3,8 +3,6 @@ import * as repository from './estadisticas.repository.js';
 
 const ZONA = 'America/Argentina/Buenos_Aires';
 
-// "rechazada" no está acá: un rechazo devuelve la tarea a "en proceso"
-// y se cuenta aparte (KPI "Tareas rechazadas") desde el historial.
 const ESTADOS = [
   ['pendiente', 'Pendiente'],
   ['en-proceso', 'En proceso'],
@@ -58,76 +56,53 @@ function clavesDeMeses(desde, hasta) {
   return claves;
 }
 
-export async function obtener(dias = 30) {
-  const { desde, hasta, desdeAnterior } = rango(dias);
-
-  const [
-    resumen, sectores, evolucion, personal,
-    tiempoResolucion, tiempoResolucionAnterior, estados,
-  ] = await Promise.all([
-    repository.obtenerResumen(desde, hasta, desdeAnterior),
-    repository.obtenerSectores(desde, hasta),
-    repository.obtenerEvolucionCompras(desde, hasta, ZONA),
-    repository.obtenerPersonal(desde, hasta),
-    repository.obtenerTiempoResolucion(desde, hasta),
-    repository.obtenerTiempoResolucion(desdeAnterior, desde),
-    repository.obtenerEstados(desde, hasta),
+export async function obtener() {
+  // 1. Traemos TODOS los datos de la base de datos de una vez
+  const [resumen, sectores, evolucion, personal, tiempoResolucion, estados] = await Promise.all([
+    repository.obtenerResumenGeneral(), // <-- Nueva función que crearemos
+    repository.obtenerSectores(),
+    repository.obtenerEvolucionCompras(),
+    repository.obtenerPersonal(),
+    repository.obtenerTiempoResolucion(),
+    repository.obtenerEstados(),
   ]);
 
   const totalGastos = Number(resumen.gastos_compras);
-  const totalGastosAnterior = Number(resumen.gastos_compras_anterior);
-
   const estadosMap = Object.fromEntries(
     estados.map((fila) => [fila.estado, Number(fila.valor)]),
   );
 
-  const meses = clavesDeMeses(desde, hasta);
-  const serieMensualTotal = meses.map(({ anio, mes }) => {
-    const fila = evolucion.find((item) => item.anio === anio && item.mes === mes);
-    return fila ? Number(fila.valor) : 0;
-  });
+  // Como ya no hay períodos, mostramos todos los meses que tienen datos
+  const meses = evolucion.map(item => MESES[item.mes - 1]);
 
   return {
-    periodo: dias,
     kpis: [
       { clave: 'total-requerimientos', etiqueta: 'Total de requerimientos',
-        valor: Number(resumen.total_requerimientos),
-        variacion: variacion(resumen.total_requerimientos, resumen.total_requerimientos_anterior),
-        subeEsBueno: true },
+        valor: Number(resumen.total_requerimientos), variacion: null, subeEsBueno: true },
       { clave: 'finalizadas', etiqueta: 'Tareas finalizadas',
-        valor: Number(resumen.finalizadas),
-        variacion: variacion(resumen.finalizadas, resumen.finalizadas_anterior),
-        subeEsBueno: true },
+        valor: Number(resumen.finalizadas), variacion: null, subeEsBueno: true },
       { clave: 'en-proceso', etiqueta: 'Tareas en proceso',
         valor: Number(resumen.en_proceso), variacion: null, subeEsBueno: false },
       { clave: 'demoradas', etiqueta: 'Tareas demoradas',
         valor: Number(resumen.demoradas), variacion: null, subeEsBueno: false },
       { clave: 'rechazadas', etiqueta: 'Tareas rechazadas',
-        valor: Number(resumen.rechazadas),
-        variacion: variacion(resumen.rechazadas, resumen.rechazadas_anterior),
-        subeEsBueno: false },
+        valor: Number(resumen.rechazadas), variacion: null, subeEsBueno: false },
       { clave: 'gastos', etiqueta: 'Gastos totales',
-        valor: totalGastos,
-        variacion: variacion(totalGastos, totalGastosAnterior),
-        subeEsBueno: false, formato: 'moneda' },
+        valor: totalGastos, variacion: null, subeEsBueno: false, formato: 'moneda' },
     ],
     sectores,
     personal: personal.map((fila) => ({
       nombre: fila.nombre,
       realizadas: Number(fila.realizadas),
-      tasa: Number(fila.realizadas) === 0
-        ? 0
-        : Math.round((Number(fila.exitosas) / Number(fila.realizadas)) * 100),
+      tasa: Number(fila.realizadas) === 0 ? 0 : Math.round((Number(fila.exitosas) / Number(fila.realizadas)) * 100),
     })),
     evolucionGastos: {
-      meses: meses.map((m) => m.etiqueta),
-      series: [
-        { clave: 'gastos', nombre: 'Gasto total', valores: serieMensualTotal },
-      ],
+      meses: meses,
+      series: [{ clave: 'gastos', nombre: 'Gasto total', valores: evolucion.map(e => Number(e.valor)) }],
     },
     tiempoResolucion: {
       dias: tiempoResolucion,
-      variacion: variacion(tiempoResolucion, tiempoResolucionAnterior),
+      variacion: 0,
     },
     estadoTareas: ESTADOS.map(([clave, etiqueta]) => ({
       clave,
@@ -139,20 +114,37 @@ export async function obtener(dias = 30) {
 
 export async function obtenerResumenPanel(rol) {
   const r = await repository.obtenerResumenPanel();
-  if (rol === ROLES.JEFE) {
+  if (rol === ROLES.JEFE_MANTENIMIENTO) {
     return {
       requerimientosPendientes: r.requerimientos_pendientes,
       tareasPendientes: r.tareas_pendientes,
       tareasEnProceso: r.en_proceso,
       tareasDemoradas: r.demoradas,
-      tareasFinalizadas: r.finalizadas,
-      tareasRechazadas: r.rechazadas,
+      tareasAprobadas: r.aprobadas,
+      tareasCanceladas: r.canceladas,
     };
   }
   return {
-    pendientesEvaluacion: r.pendientes_evaluacion,
+    requerimientosPendientes: r.requerimientos_pendientes,
     enProceso: r.en_proceso,
-    finalizadas: r.finalizadas,
+    finalizadas: r.pendientes_evaluacion,
     rechazadas: r.rechazadas,
   };
+}
+export async function listar(filtros, actor) {
+  if (filtros.estado && !ESTADOS.includes(filtros.estado)) {
+    throw new ApiError(400, `Estado inválido. Valores permitidos: ${ESTADOS.join(', ')}`);
+  }
+  if (filtros.prioridad && !PRIORIDADES.includes(filtros.prioridad)) {
+    throw new ApiError(400, 'La prioridad debe ser baja, media o alta');
+  }
+  validarFecha(filtros.desde, 'desde');
+  validarFecha(filtros.hasta, 'hasta');
+
+  if (actor && actor.rol === 'ordenanza') {
+    filtros.idResponsable = actor.id;
+  }
+
+  const tareas = await repository.listar(filtros);
+  return tareas.map(mapearTarea);
 }

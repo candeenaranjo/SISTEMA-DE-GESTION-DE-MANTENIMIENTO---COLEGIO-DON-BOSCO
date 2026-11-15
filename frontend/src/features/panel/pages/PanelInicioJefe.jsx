@@ -106,18 +106,18 @@ function PanelInicioJefe() {
         </div>
         <div className="col">
           <TarjetaResumen
-            tono="finalizada"
+            tono="aprobada"
             icono={FaCircleCheck}
-            etiqueta="Tareas finalizadas"
-            valor={resumen.tareasFinalizadas}
+            etiqueta="Tareas aprobadas"
+            valor={resumen.tareasAprobadas}
           />
         </div>
         <div className="col">
           <TarjetaResumen
-            tono="rechazada"
+            tono="cancelada"
             icono={FaCircleXmark}
-            etiqueta="Tareas rechazadas"
-            valor={resumen.tareasRechazadas}
+            etiqueta="Tareas canceladas"
+            valor={resumen.tareasCanceladas}
           />
         </div>
       </div>

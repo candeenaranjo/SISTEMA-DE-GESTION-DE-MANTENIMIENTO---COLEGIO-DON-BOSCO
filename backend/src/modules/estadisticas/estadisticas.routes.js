@@ -10,7 +10,7 @@ const router = Router();
 router.get(
   '/resumen',
   verificarToken,
-  verificarRol(ROLES.JEFE, ROLES.DIRECTIVO),
+  verificarRol(ROLES.JEFE_MANTENIMIENTO, ROLES.DIRECTIVO),
   controller.resumen,
 );
 

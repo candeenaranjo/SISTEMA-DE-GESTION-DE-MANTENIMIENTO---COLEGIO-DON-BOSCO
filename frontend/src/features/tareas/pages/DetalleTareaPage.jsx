@@ -2,17 +2,16 @@ import { useEffect, useState } from 'react';
 import { Link, useParams, useOutletContext } from 'react-router';
 import { FaScrewdriverWrench } from 'react-icons/fa6';
 import '../styles/DetalleTareaPage.css';
-import {
-  obtenerTareaPorId,
-  obtenerHistorialTarea,
-  evaluarTarea,
-} from '../services/tareasService';
+import { obtenerTareaPorId, obtenerHistorialTarea, evaluarTarea, cambiarEstadoTarea } from '../services/tareasService';
 import EncabezadoPage from '../../../shared/components/EncabezadoPagina';
 import { useToast } from '../../../shared/context/ToastContext';
 import ResumenDetalleTarea from '../components/ResumenDetalleTarea';
 import RequerimientoAsociado from '../components/RequerimientoAsociado';
 import AccionesDetalleTarea from '../components/AccionesDetalleTarea';
 import HistorialTarea from '../components/HistorialTarea';
+import ModalMotivo from '../../../shared/components/ModalMotivo';
+import ModalConfirmacion from '../../../shared/components/ModalConfirmacion';
+import Toast from '../../../shared/components/Toast';
 
 function DetalleTareaPage() {
   const { id } = useParams();
@@ -24,17 +23,32 @@ function DetalleTareaPage() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
+  const [confirmacion, setConfirmacion] = useState({ abierto: false, accion: null, titulo: '', mensaje: '' });
+  const [motivoModal, setMotivoModal] = useState({ abierto: false, accion: null, titulo: '', mensaje: '' });
+  const [toast, setToast] = useState({ abierto: false, mensaje: '', tipo: 'success' });
+
+  const mostrarNotificacion = (mensaje, tipo = 'success') => {
+    setToast({ abierto: true, mensaje, tipo });
+  };
+
   useEffect(() => {
     const ctrl = new AbortController();
     setCargando(true);
     setError(null);
 
-    // La compra viene embebida en la tarea (tarea.compra); el historial se pide aparte
-    Promise.all([obtenerTareaPorId(id), obtenerHistorialTarea(id)])
-      .then(([t, h]) => {
+    // Pedimos la tarea. Si el historial falla, no rompemos la pantalla.
+    obtenerTareaPorId(id)
+      .then(async (t) => {
         if (ctrl.signal.aborted) return;
         setTarea(t);
-        setHistorial(h ?? []);
+
+        try {
+          const h = await obtenerHistorialTarea(id);
+          if (!ctrl.signal.aborted) setHistorial(h ?? []);
+        } catch (err) {
+          console.warn("No se pudo cargar el historial", err);
+          if (!ctrl.signal.aborted) setHistorial([]); // Historial vacío si falla
+        }
       })
       .catch((e) => {
         if (e.name !== 'AbortError') setError(e.message);
@@ -60,15 +74,22 @@ function DetalleTareaPage() {
 
   const manejarAceptar = (tareaId) => evaluar(tareaId, { estado: 'aprobada' }, 'Tarea aprobada');
 
-  function manejarRechazar(tareaId) {
-    const motivo = window.prompt('Motivo del rechazo:');
-    if (!motivo || !motivo.trim()) return;
-    evaluar(
-      tareaId,
-      { estado: 'rechazada', motivo: motivo.trim() },
-      'Tarea rechazada. Vuelve a en proceso.',
-    );
-  }
+  const manejarRechazar = (tareaId) => {
+    setMotivoModal({
+      abierto: true,
+      titulo: 'Rechazar tarea',
+      mensaje: 'Indicá por qué rechazás la tarea. El Jefe de Mantenimiento tendrá que volver a trabajar en ella.',
+      accion: async (motivo) => {
+        try {
+          await evaluarTarea(tareaId, { estado: 'rechazada', motivo });
+          // ... actualizar tarea ...
+          setMotivoModal({ abierto: false, accion: null });
+        } catch (e) {
+          mostrarNotificacion(e.message, 'error');
+        }
+      }
+    });
+  };
 
   if (cargando) {
     return (
@@ -94,16 +115,62 @@ function DetalleTareaPage() {
     );
   }
 
+  const manejarFinalizar = (tareaId) => {
+    setConfirmacion({
+      abierto: true,
+      titulo: 'Finalizar tarea',
+      mensaje: '¿Estás seguro de que concluiste el trabajo? Se notificará al Directivo para su evaluación.',
+      accion: async () => {
+        try {
+          const actualizada = await cambiarEstadoTarea(tareaId, { estado: 'finalizada' });
+          setTarea(actualizada);
+          mostrarNotificacion('Tarea finalizada correctamente.', 'success');
+          setHistorial(await obtenerHistorialTarea(tareaId));
+          setConfirmacion({ abierto: false, accion: null });
+        } catch (e) {
+          mostrarNotificacion(e.message, 'error');
+          setConfirmacion({ abierto: false, accion: null });
+        }
+      }
+    });
+  };
+
+  const manejarDemorar = (tareaId) => {
+    setMotivoModal({
+      abierto: true,
+      titulo: 'Demorar tarea',
+      mensaje: 'Indicá el motivo por el cual la tarea no puede continuar (ej. falta de materiales).',
+      accion: async (motivo) => {
+        try {
+          const actualizada = await cambiarEstadoTarea(tareaId, { estado: 'demorada', motivo });
+          setTarea(actualizada);
+          mostrarNotificacion('Tarea marcada como demorada.', 'info');
+          setHistorial(await obtenerHistorialTarea(tareaId));
+          setMotivoModal({ abierto: false, accion: null });
+        } catch (e) {
+          mostrarNotificacion(e.message, 'error');
+          setMotivoModal({ abierto: false, accion: null });
+        }
+      }
+    });
+  };
+
   return (
     <div className="detalle-tarea-page">
       <EncabezadoPage
-        volver={{ to: '/gestor/tareas', texto: 'Volver al listado' }}
+        volver={
+          usuario?.rol === 'ordenanza'
+            ? { to: '/gestor/mis-asignaciones', texto: 'Volver a Mis Asignaciones' }
+            : { to: '/gestor/tareas', texto: 'Volver al listado' }
+        }
         icono={FaScrewdriverWrench}
         titulo="Detalle de tarea"
         subtitulo={
           usuario?.rol === 'directivo'
             ? 'Revisá la tarea y aprobá o rechazá si está finalizada.'
-            : 'Información completa de la tarea y su requerimiento asociado.'
+            : usuario?.rol === 'ordenanza'
+              ? 'Revisá los detalles del trabajo asignado y marcalo como finalizado cuando termines.'
+              : 'Información completa de la tarea y su requerimiento asociado.'
         }
       />
 
@@ -119,10 +186,34 @@ function DetalleTareaPage() {
             usuario={usuario}
             onAceptar={manejarAceptar}
             onRechazar={manejarRechazar}
+            onFinalizar={manejarFinalizar}
           />
           <HistorialTarea historial={historial} />
         </div>
       </div>
+      <ModalConfirmacion
+        abierto={confirmacion.abierto}
+        titulo={confirmacion.titulo}
+        mensaje={confirmacion.mensaje}
+        variante="success"
+        textoConfirmar="Sí, confirmar"
+        onConfirmar={confirmacion.accion}
+        onCancelar={() => setConfirmacion({ abierto: false, accion: null })}
+      />
+       <ModalMotivo
+        abierto={motivoModal.abierto}
+        titulo={motivoModal.titulo}
+        mensaje={motivoModal.mensaje}
+        textoConfirmar="Guardar motivo"
+        onConfirmar={motivoModal.accion}
+        onCerrar={() => setMotivoModal({ abierto: false, accion: null })}
+      />
+      <Toast
+        abierto={toast.abierto}
+        tipo={toast.tipo}
+        mensaje={toast.mensaje}
+        onCerrar={() => setToast({ ...toast, abierto: false })}
+      />
     </div>
   );
 }

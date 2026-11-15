@@ -3,7 +3,7 @@
 -- Ejecutar después de schema.sql (con los 2 fixes de arriba).
 --   psql -U postgres -d donbosco_mantenimiento -f seed.sql
 -- ============================================================
-\encoding UTF8
+-- \encoding UTF8
 
 TRUNCATE TABLE notificaciones, compras, historial, tareas, requerimientos,
   personal_externo, usuarios, especialidades, sectores, cargos, roles, categorias
@@ -155,8 +155,6 @@ INSERT INTO requerimientos (
   -- más requerimientos de prueba
   (343, 5, 'Grieta en la pared del aula 15, lado ventana. Se agranda con el tiempo.',
         3,  NULL, 14, 'pendiente', TRUE, TO_TIMESTAMP('26/06/2025 08:10','DD/MM/YYYY HH24:MI')),
-  (344, 9, 'La cerradura del portón del gimnasio está trabada. No se puede abrir desde afuera.',
-        11, NULL, 15, 'pendiente', TRUE, TO_TIMESTAMP('26/06/2025 09:25','DD/MM/YYYY HH24:MI')),
   (345, 2, 'Fluorescentes del salón de actos parpadean. Son 4 tubos.',
         19, NULL, 1,  'asignado', TRUE, TO_TIMESTAMP('26/06/2025 10:40','DD/MM/YYYY HH24:MI')),
   (346, 1, 'Pérdida de agua en el baño del pabellón B. El inodoro no para de cargar.',
@@ -212,18 +210,6 @@ INSERT INTO tareas (
    TO_TIMESTAMP('24/06/2025 15:00','DD/MM/YYYY HH24:MI'),
    'Revisión de caldera completa.', NULL, 10, NULL, NULL, NULL),
 
-  -- 122: req 336 gas cocina -> CANCELADA (gasista no pudo venir)
-  (122, 336, 'alta',  'cancelada',
-   TO_TIMESTAMP('23/06/2025 12:18','DD/MM/YYYY HH24:MI'),
-   TO_TIMESTAMP('23/06/2025 14:00','DD/MM/YYYY HH24:MI'),
-   TO_TIMESTAMP('23/06/2025 18:00','DD/MM/YYYY HH24:MI'),
-   'Se canceló porque el gasista no pudo venir.', NULL, NULL, 7, NULL, NULL),
-
-  -- 129: req 336 -> TAREA NUEVA que reemplaza a la cancelada (mismo requerimiento)
-  (129, 336, 'alta',  'pendiente',
-   TO_TIMESTAMP('24/06/2025 09:00','DD/MM/YYYY HH24:MI'),
-   NULL, NULL, 'Tarea generada por cancelación de T-0122.', NULL, NULL, NULL, 122, NULL),
-
   -- 121: req 335 toma eléctrica -> aprobada, interno (Juan Torres), Directivo (Carlos Pérez)
   (121, 335, 'media', 'aprobada',
    TO_TIMESTAMP('22/06/2025 10:05','DD/MM/YYYY HH24:MI'),
@@ -231,26 +217,11 @@ INSERT INTO tareas (
    TO_TIMESTAMP('22/06/2025 16:30','DD/MM/YYYY HH24:MI'),
    'Trabajo conforme.', 4, 13, NULL, NULL, NULL),
 
-  -- 130: req 337 calefacción -> caso RECHAZADA por Directivo y vuelta a en-proceso
-  --      (misma req que la 123; la 123 queda finalizada y la 130 es la "viva" rechazada)
-  --      OJO: para no chocar con el índice único, la 123 debe pasar a estado 'rechazada'
-  --      o 'aprobada'. Para este ejemplo la dejamos como 'rechazada' y la 130 como 'en-proceso'.
-  (130, 337, 'alta',  'rechazada',
-   TO_TIMESTAMP('24/06/2025 16:00','DD/MM/YYYY HH24:MI'),
-   TO_TIMESTAMP('24/06/2025 16:30','DD/MM/YYYY HH24:MI'),
-   TO_TIMESTAMP('25/06/2025 10:00','DD/MM/YYYY HH24:MI'),
-   'El Directivo rechazó: faltó pintar el marco.', 4, 10, NULL, NULL, NULL),
-
   -- 131: req 345 fluorescentes salón de actos -> en-proceso, interno (Ana Torres)
   (131, 345, 'media', 'en-proceso',
    TO_TIMESTAMP('26/06/2025 10:40','DD/MM/YYYY HH24:MI'),
    TO_TIMESTAMP('26/06/2025 11:30','DD/MM/YYYY HH24:MI'),
    NULL, 'Se están cambiando los tubos.', NULL, 1, NULL, NULL, NULL),
-
-  -- 132: req 346 pérdida baño pabellón B -> pendiente, sin asignar
-  (132, 346, 'alta',  'pendiente',
-   TO_TIMESTAMP('26/06/2025 11:05','DD/MM/YYYY HH24:MI'),
-   NULL, NULL, 'A la espera de asignación.', NULL, NULL, NULL, NULL, NULL),
 
   -- 133: req 347 repintar capilla -> en-proceso, externo (Ponce)
   (133, 347, 'baja',  'en-proceso',
@@ -290,27 +261,14 @@ INSERT INTO historial (id_tarea, estado, motivo, id_usuario, fecha_hora) VALUES
   (123, 'pendiente',  'Tarea creada a partir del requerimiento REQ-0337', 6,  TO_TIMESTAMP('23/06/2025 17:40','DD/MM/YYYY HH24:MI')),
   (123, 'en-proceso', 'Pedro Ruiz comenzó la revisión de la caldera.',   10, TO_TIMESTAMP('24/06/2025 09:00','DD/MM/YYYY HH24:MI')),
   (123, 'finalizada', 'Tarea finalizada. Pendiente de evaluación del Directivo.', 10, TO_TIMESTAMP('24/06/2025 15:00','DD/MM/YYYY HH24:MI')),
-  -- 122 (cancelación)
-  (122, 'pendiente',  'Tarea creada a partir del requerimiento REQ-0336', 6,  TO_TIMESTAMP('23/06/2025 12:18','DD/MM/YYYY HH24:MI')),
-  (122, 'en-proceso', 'Se asignó al gasista para la revisión.',           6,  TO_TIMESTAMP('23/06/2025 14:00','DD/MM/YYYY HH24:MI')),
-  (122, 'cancelada',  'Se canceló porque el gasista no pudo venir.',      6,  TO_TIMESTAMP('23/06/2025 18:00','DD/MM/YYYY HH24:MI')),
-  -- 129 (nueva tarea por cancelación)
-  (129, 'pendiente',  'Tarea generada automáticamente por cancelación de T-0122.', 6, TO_TIMESTAMP('24/06/2025 09:00','DD/MM/YYYY HH24:MI')),
   -- 121 (aprobada)
   (121, 'pendiente',  'Tarea creada a partir del requerimiento REQ-0335', 6,  TO_TIMESTAMP('22/06/2025 10:05','DD/MM/YYYY HH24:MI')),
   (121, 'en-proceso', 'Juan Torres inició el reemplazo de la toma.',      13, TO_TIMESTAMP('22/06/2025 11:30','DD/MM/YYYY HH24:MI')),
   (121, 'finalizada', 'Tarea finalizada. Pendiente de evaluación del Directivo.', 13, TO_TIMESTAMP('22/06/2025 16:30','DD/MM/YYYY HH24:MI')),
   (121, 'aprobada',   'El Directivo aprobó la tarea. Trabajo conforme.',  4,  TO_TIMESTAMP('23/06/2025 09:15','DD/MM/YYYY HH24:MI')),
-  -- 130 (rechazada)
-  (130, 'pendiente',  'Tarea creada a partir del requerimiento REQ-0337', 6,  TO_TIMESTAMP('24/06/2025 16:00','DD/MM/YYYY HH24:MI')),
-  (130, 'en-proceso', 'Se retomó la tarea para corregir observaciones.',  10, TO_TIMESTAMP('24/06/2025 16:30','DD/MM/YYYY HH24:MI')),
-  (130, 'finalizada', 'Se volvió a finalizar la tarea.',                  10, TO_TIMESTAMP('25/06/2025 09:30','DD/MM/YYYY HH24:MI')),
-  (130, 'rechazada',  'El Directivo rechazó: faltó pintar el marco.',    4,  TO_TIMESTAMP('25/06/2025 10:00','DD/MM/YYYY HH24:MI')),
   -- 131
   (131, 'pendiente',  'Tarea creada a partir del requerimiento REQ-0345', 6,  TO_TIMESTAMP('26/06/2025 10:40','DD/MM/YYYY HH24:MI')),
   (131, 'en-proceso', 'Ana Torres inició el recambio de tubos.',          1,  TO_TIMESTAMP('26/06/2025 11:30','DD/MM/YYYY HH24:MI')),
-  -- 132
-  (132, 'pendiente',  'Tarea creada a partir del requerimiento REQ-0346', 6,  TO_TIMESTAMP('26/06/2025 11:05','DD/MM/YYYY HH24:MI')),
   -- 133
   (133, 'pendiente',  'Tarea creada a partir del requerimiento REQ-0347', 6,  TO_TIMESTAMP('26/06/2025 12:00','DD/MM/YYYY HH24:MI')),
   (133, 'en-proceso', 'Alejandro Ponce inició los trabajos de pintura.',  6,  TO_TIMESTAMP('26/06/2025 13:00','DD/MM/YYYY HH24:MI')),
@@ -350,9 +308,6 @@ INSERT INTO notificaciones (
   (6, NULL, 121, 'tarea-aprobada', 'Tarea aprobada',
    'El Directivo aprobó la tarea T-0121: Reemplazo de toma eléctrica.',
    FALSE, TO_TIMESTAMP('23/06/2025 09:15','DD/MM/YYYY HH24:MI')),
-  (6, NULL, 122, 'tarea-cancelada', 'Tarea cancelada',
-   'La tarea T-0122 fue cancelada. Motivo: el gasista no pudo venir.',
-   TRUE,  TO_TIMESTAMP('23/06/2025 18:00','DD/MM/YYYY HH24:MI')),
   (5, NULL, 127, 'tarea-finalizada', 'Tarea finalizada',
    'La tarea T-0127: Cambio de luminaria pasó a finalizada.',
    FALSE, TO_TIMESTAMP('24/06/2025 14:00','DD/MM/YYYY HH24:MI')),
@@ -363,12 +318,6 @@ INSERT INTO notificaciones (
   (6, 343, NULL, 'requerimiento', 'Nuevo requerimiento',
    'Se emitió el requerimiento REQ-0343: Grieta en aula 15.',
    FALSE, TO_TIMESTAMP('26/06/2025 08:10','DD/MM/YYYY HH24:MI')),
-  (6, 344, NULL, 'requerimiento', 'Nuevo requerimiento',
-   'Se emitió el requerimiento REQ-0344: Cerradura portón gimnasio trabada.',
-   FALSE, TO_TIMESTAMP('26/06/2025 09:25','DD/MM/YYYY HH24:MI')),
-  (4, NULL, 130, 'tarea-rechazada', 'Tarea rechazada',
-   'La tarea T-0130: Reparación calefacción aula 8 fue rechazada. Vuelve a en proceso.',
-   TRUE,  TO_TIMESTAMP('25/06/2025 10:00','DD/MM/YYYY HH24:MI')),
   (5, NULL, 134, 'tarea-finalizada', 'Tarea finalizada',
    'La tarea T-0134: Limpieza patio central pasó a finalizada.',
    TRUE,  TO_TIMESTAMP('25/06/2025 18:30','DD/MM/YYYY HH24:MI')),

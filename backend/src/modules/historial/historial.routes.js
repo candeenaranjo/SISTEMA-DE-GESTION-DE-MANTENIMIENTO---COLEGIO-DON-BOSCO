@@ -11,7 +11,7 @@ const router = Router({ mergeParams: true });
 router.get(
   '/',
   verificarToken,
-  verificarRol('jefeMantenimiento', 'directivo'),
+  verificarRol('jefeMantenimiento', 'directivo', 'ordenanza'),
   // router.param no ve el :id del montaje, así que se valida acá (evita un 500 de Postgres)
   (req, res, next) =>
     /^\d+$/.test(req.params.id) ? next() : next(new ApiError(400, 'El id indicado no es válido')),

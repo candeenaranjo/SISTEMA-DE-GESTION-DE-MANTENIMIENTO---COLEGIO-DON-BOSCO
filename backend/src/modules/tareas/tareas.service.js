@@ -73,7 +73,7 @@ async function resolverResponsable(datos) {
   return { idResponsable, idPersonalExterno };
 }
 
-export async function listar(filtros) {
+export async function listar(filtros, actor) {
   if (filtros.estado && !ESTADOS.includes(filtros.estado)) {
     throw new ApiError(400, `Estado inválido. Valores permitidos: ${ESTADOS.join(', ')}`);
   }
@@ -83,6 +83,10 @@ export async function listar(filtros) {
   validarFecha(filtros.desde, 'desde');
   validarFecha(filtros.hasta, 'hasta');
 
+  if (actor && actor.rol === 'ordenanza') {
+    filtros.idResponsable = actor.id;
+  }
+
   const tareas = await repository.listar(filtros);
   return tareas.map(mapearTarea);
 }
@@ -90,10 +94,6 @@ export async function listar(filtros) {
 // GET /tareas/resumen (Jefe): cantidad de tareas por estado para el panel de inicio
 export async function resumen() {
   return repository.resumen();
-}
-
-export async function obtener(id) {
-  return mapearTarea(await buscarTarea(id));
 }
 
 // POST /tareas (Jefe): toma un requerimiento pendiente y le asigna responsable.
@@ -191,13 +191,31 @@ export async function actualizar(id, datos, actor) {
 export async function cambiarEstado(id, datos, actor) {
   const estado = datos.estado;
   const motivo = String(datos.motivo ?? '').trim();
-  if (!Object.values(TRANSICIONES_JEFE).flat().includes(estado)) {
-    throw new ApiError(400, 'El estado debe ser en-proceso, demorada o finalizada (para cancelar usá /cancelacion)');
+  if (actor.rol === 'ordenanza') {
+    if (estado !== 'finalizada') {
+      throw new ApiError(403, 'El personal de Ordenanza solo tiene permiso para marcar tareas como finalizadas.');
+    }
+  } else {
+    // Validación normal para el Jefe
+    if (!Object.values(TRANSICIONES_JEFE).flat().includes(estado)) {
+      throw new ApiError(400, 'El estado debe ser en-proceso, demorada o finalizada (para cancelar usá /cancelacion)');
+    }
+    if (estado === 'demorada' && !motivo) {
+      throw new ApiError(400, 'El motivo es obligatorio para demorar una tarea');
+    }
   }
-  if (estado === 'demorada' && !motivo) throw new ApiError(400, 'El motivo es obligatorio para demorar una tarea');
 
   return withTransaction(async (client) => {
     const actual = await buscarTarea(id, client);
+
+    if (actor.rol !== 'ordenanza') {
+      const permitidos = TRANSICIONES_JEFE[actual.estado] ?? [];
+      if (!permitidos.includes(estado)) {
+        throw new ApiError(409, `No se puede pasar una tarea de "${actual.estado}" a "${estado}"`);
+      }
+    } else if (['finalizada', 'aprobada', 'cancelada'].includes(actual.estado)) {
+      throw new ApiError(409, 'Esta tarea ya se encuentra terminada.');
+    }
 
     const permitidos = TRANSICIONES_JEFE[actual.estado] ?? [];
     if (!permitidos.includes(estado)) {
@@ -278,7 +296,7 @@ export async function cancelar(id, datos, actor) {
     );
     await historialRepository.crear(id, { estado: 'cancelada', motivo, idUsuario: actor.id }, client);
 
-    // 2) Tarea nueva: mismo requerimiento, misma prioridad y observaciones, sin responsable (hay que reasignar)
+    // 2) Tarea nueva: mismo requerimiento, misma prioridad y observaciones, sin responsable
     const idNueva = await repository.crear(
       {
         idRequerimiento: actual.idRequerimiento,
@@ -303,8 +321,11 @@ export async function cancelar(id, datos, actor) {
     );
     await repository.moverCompras(id, idNueva, client);
 
-    // 4) El requerimiento vuelve a pendiente (tarea nueva pendiente)
+    // 4) El requerimiento vuelve a pendiente
     await requerimientosRepository.cambiarEstado(actual.idRequerimiento, ESTADO_REQUERIMIENTO.cancelada, client);
+
+    // 5) DAMOS DE BAJA LÓGICA A LA TAREA VIEJA (en lugar de borrarla)
+    await repository.desactivar(id, client);
 
     return {
       cancelada: mapearTarea(await repository.obtenerPorId(id, client)),
@@ -367,4 +388,14 @@ export async function evaluar(id, datos, actor) {
 
     return mapearTarea(await repository.obtenerPorId(id, client));
   });
+}
+
+export async function obtener(id, actor) {
+  const tarea = await buscarTarea(id);
+  
+  // Si es ordenanza y la tarea no es suya, le negamos el acceso
+  if (actor?.rol === 'ordenanza' && Number(tarea.idResponsable) !== actor.id) {
+    throw new ApiError(403, 'No tenés permiso para ver esta tarea');
+  }
+  return mapearTarea(tarea);
 }

@@ -53,9 +53,14 @@ const SELECT_TAREA = `
   LEFT JOIN compras c ON c.id_tarea = t.id_tarea
 `;
 
-export async function listar({ estado, prioridad, sector, desde, hasta } = {}) {
-  const condiciones = [];
+export async function listar({ estado, prioridad, sector, desde, hasta, idResponsable } = {}) {
+  const condiciones = [`t.activo = TRUE`];
   const valores = [];
+
+  if (idResponsable) {
+    valores.push(idResponsable);
+    condiciones.push(`t.id_responsable = $${valores.length}`);
+  }
 
   if (estado) {
     valores.push(estado);
@@ -83,6 +88,7 @@ export async function listar({ estado, prioridad, sector, desde, hasta } = {}) {
   const { rows } = await pool.query(`${SELECT_TAREA} ${where} ORDER BY t.fecha_creacion DESC`, valores);
   return rows;
 }
+
 
 export async function resumen(db = pool) {
   const { rows } = await db.query(`
@@ -214,4 +220,8 @@ export async function copiarHistorial(idOrigen, idDestino, db = pool) {
 // Las compras se MUEVEN (no se copian): así el gasto en materiales no se cuenta dos veces en las estadísticas.
 export async function moverCompras(idOrigen, idDestino, db = pool) {
   await db.query('UPDATE compras SET id_tarea = $2 WHERE id_tarea = $1', [idOrigen, idDestino]);
+}
+
+export async function desactivar(id, db = pool) {
+  await db.query('UPDATE tareas SET activo = FALSE WHERE id_tarea = $1', [id]);
 }

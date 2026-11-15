@@ -6,6 +6,7 @@ import { obtenerRequerimientosPendientes, eliminarRequerimiento } from '../servi
 import Filtros from '../../../shared/components/Filtros';
 import TablaRequerimientos from '../components/TablaRequerimientos';
 import EncabezadoPagina from '../../../shared/components/EncabezadoPagina';
+import ModalConfirmacion from '../../../shared/components/ModalConfirmacion';
 
 const POR_PAGINA = 8;
 
@@ -22,6 +23,7 @@ function RequerimientosListadoPage() {
   const [error, setError] = useState('');
   const [filtros, setFiltros] = useState({ busqueda: '', lugar: 'todos', fechaDesde: '', fechaHasta: '' });
   const [pagina, setPagina] = useState(1);
+  const [modalEliminar, setModalEliminar] = useState({ abierto: false, id: null });
 
   useEffect(() => {
     let activo = true;
@@ -42,14 +44,23 @@ function RequerimientosListadoPage() {
     setPagina(1);
   }
 
-  const handleEliminar = async (id) => {
-    if (window.confirm('¿Estás seguro de eliminar este requerimiento?')) {
-      try {
-        await eliminarRequerimiento(id);
-        setTodosLosRequerimientos(prev => prev.filter(r => r.id !== id));
-      } catch (err) {
-        alert('Error al eliminar: ' + err.message);
-      }
+  const abrirModalEliminar = (id) => {
+    setModalEliminar({ abierto: true, id });
+  };
+
+  // Esta función se ejecuta cuando el usuario confirma en el modal
+  const confirmarEliminar = async () => {
+    const id = modalEliminar.id;
+    if (!id) return;
+
+    try {
+      await eliminarRequerimiento(id);
+      setTodosLosRequerimientos((prev) => prev.filter((r) => r.id !== id));
+      setModalEliminar({ abierto: false, id: null }); // Cerramos el modal
+      // (Opcional) Acá podrías lanzar un Toast de éxito
+    } catch (err) {
+      alert('Error al eliminar: ' + err.message); // Esto podés cambiarlo por un Toast
+      setModalEliminar({ abierto: false, id: null });
     }
   };
 
@@ -91,7 +102,7 @@ function RequerimientosListadoPage() {
       <Filtros
         filtros={filtros}
         onCambiar={manejarCambioFiltro}
-        onAplicar={() => {}}
+        onAplicar={() => { }}
         campos={[
           { tipo: 'busqueda', clave: 'busqueda', placeholder: 'Buscar por ID, categoría o descripción…' },
           {
@@ -121,12 +132,23 @@ function RequerimientosListadoPage() {
             <small>Cuando se emita uno nuevo, va a aparecer acá.</small>
           </div>
         ) : (
-          <TablaRequerimientos 
-            requerimientos={requerimientosPagina} 
-            onEliminar={handleEliminar} 
+          <TablaRequerimientos
+            requerimientos={requerimientosPagina}
+            onEliminar={abrirModalEliminar}
           />
         )}
       </div>
+
+      <ModalConfirmacion
+        abierto={modalEliminar.abierto}
+        titulo="Eliminar requerimiento"
+        mensaje="¿Estás seguro de que querés eliminar este requerimiento? Esta acción no se puede deshacer."
+        textoConfirmar="Sí, eliminar"
+        textoCancelar="Cancelar"
+        variante="danger"
+        onConfirmar={confirmarEliminar}
+        onCancelar={() => setModalEliminar({ abierto: false, id: null })}
+      />
 
       {!cargando && !error && requerimientosFiltrados.length > 0 && (
         <div className="d-flex justify-content-between align-items-center mt-3">
@@ -156,6 +178,7 @@ function RequerimientosListadoPage() {
           )}
         </div>
       )}
+      
     </div>
   );
 }

@@ -25,6 +25,7 @@ import {
   TareasListadoPage,
   FormularioTareaPage,
   DetalleTareaPage,
+  MisAsignacionesPage
 } from "./features/tareas";
 //personal externo
 import {
@@ -43,6 +44,7 @@ import {
 //estadisticas de directivo
 import { EstadisticasPage } from "./features/estadisticas";
 import NotFound from "./shared/pages/NotFound";
+
 
 export const router = createBrowserRouter([
   // publico
@@ -139,7 +141,7 @@ export const router = createBrowserRouter([
       {
         path: "tareas/:id",
         element: <DetalleTareaPage />,
-        loader: requerirRol(["directivo", "jefeMantenimiento"]),
+        loader: requerirRol(["directivo", "jefeMantenimiento", "ordenanza"]),
       },
       {
         path: "usuarios/nuevo",
@@ -157,6 +159,11 @@ export const router = createBrowserRouter([
         element: <MisRequerimientosPage />,
         loader: requerirRol(["ordenanza", "directivo", "jefeMantenimiento"]),
       },
+      {
+        path: "mis-asignaciones",
+        element: <MisAsignacionesPage />,
+        loader: requerirRol(["ordenanza","jefeMantenimiento"]),
+      }
     ],
   },
   {

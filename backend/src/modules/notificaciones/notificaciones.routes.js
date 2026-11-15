@@ -8,7 +8,7 @@ import { validarId } from '../../middlewares/validar.js';
 const router = Router();
 
 router.use(verificarToken);
-router.use(verificarRol(ROLES.JEFE, ROLES.DIRECTIVO));
+router.use(verificarRol(ROLES.JEFE_MANTENIMIENTO, ROLES.DIRECTIVO));
 
 router.get('/', controller.listar);
 router.put('/:id', validarId(), controller.marcarLeida);

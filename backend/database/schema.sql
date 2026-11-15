@@ -139,6 +139,7 @@ CREATE TABLE tareas (
   fecha_inicio TIMESTAMPTZ,
   fecha_fin TIMESTAMPTZ,
   observaciones TEXT,
+  activo BOOLEAN NOT NULL DEFAULT TRUE,
   id_directivo INTEGER REFERENCES usuarios(id_usuario),
   id_responsable INTEGER REFERENCES usuarios(id_usuario),
   id_personal_externo INTEGER REFERENCES personal_externo(id_personal),

@@ -9,7 +9,7 @@ import { validar } from '../../middlewares/validar.js';
 const router = Router();
 
 router.use(verificarToken);
-router.use(verificarRol('jefeMantenimiento', 'directivo'));
+router.use(verificarRol('jefeMantenimiento', 'directivo', 'ordenanza'));
 
 // Si la ruta lleva :id, tiene que ser un entero (evita que Postgres tire un 500 por un id inválido)
 router.param('id', (req, res, next, id) => {
@@ -52,7 +52,7 @@ router.put(
 // Cambiar el estado: iniciar (en-proceso), demorar, retomar (en-proceso) o finalizar (Jefe)
 router.put(
   '/:id/estado',
-  verificarRol('jefeMantenimiento'),
+  verificarRol('jefeMantenimiento','ordenanza'),
   validar({
     estado: { requerido: true, tipo: 'string', enum: ['en-proceso', 'demorada', 'finalizada'] },
     motivo: { tipo: 'string', max: 500 },
