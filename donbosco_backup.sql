@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict QjGefx9npugOyJvZzNKcwlSFr50XGXt9v8XmIWd2SYrrYCf96NzmxwaqZoFryJI
+\restrict wXpSSch5N8cpsgJmV7RQCQ1X8eUN9pdLaTcf56Ep1sL3TJY6S9L6G714d42IZXE
 
--- Dumped from database version 18.6
--- Dumped by pg_dump version 18.6
+-- Dumped from database version 17.12
+-- Dumped by pg_dump version 17.12
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -18,35 +18,6 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
-
---
--- Name: public; Type: SCHEMA; Schema: -; Owner: -
---
-
--- *not* creating schema, since initdb creates it
-
-
---
--- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON SCHEMA public IS '';
-
-
---
--- Name: requerimientos_copiar_nombres(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.requerimientos_copiar_nombres() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  SELECT nombre INTO NEW.categoria_nombre FROM categorias WHERE id_categoria = NEW.id_categoria;
-  SELECT nombre INTO NEW.sector_nombre FROM sectores WHERE id_sector = NEW.id_sector;
-  RETURN NEW;
-END
-$$;
-
 
 SET default_tablespace = '';
 
@@ -112,9 +83,7 @@ CREATE TABLE public.compras (
     categoria character varying(20) DEFAULT 'materiales'::character varying NOT NULL,
     fecha timestamp with time zone DEFAULT now() NOT NULL,
     factura text,
-    fuente_financiamiento character varying(10) DEFAULT 'colegio'::character varying NOT NULL,
     CONSTRAINT compras_categoria_check CHECK (((categoria)::text = ANY ((ARRAY['materiales'::character varying, 'servicios'::character varying, 'otros'::character varying])::text[]))),
-    CONSTRAINT compras_fuente_financiamiento_check CHECK (((fuente_financiamiento)::text = ANY ((ARRAY['jefe'::character varying, 'colegio'::character varying])::text[]))),
     CONSTRAINT compras_monto_check CHECK ((monto > (0)::numeric))
 );
 
@@ -258,11 +227,9 @@ ALTER TABLE public.personal_externo ALTER COLUMN id_personal ADD GENERATED ALWAY
 
 CREATE TABLE public.requerimientos (
     id_requerimiento integer NOT NULL,
-    id_categoria integer,
-    categoria_nombre character varying(100) NOT NULL,
+    id_categoria integer NOT NULL,
     descripcion text NOT NULL,
-    id_sector integer,
-    sector_nombre character varying(100) NOT NULL,
+    id_sector integer NOT NULL,
     imagen text,
     id_usuario integer NOT NULL,
     estado character varying(20) DEFAULT 'pendiente'::character varying NOT NULL,
@@ -353,9 +320,8 @@ CREATE TABLE public.tareas (
     id_personal_externo integer,
     id_tarea_origen integer,
     costo_personal_externo numeric(10,2),
-    activo boolean DEFAULT true NOT NULL,
     CONSTRAINT tareas_costo_personal_externo_check CHECK (((costo_personal_externo IS NULL) OR (costo_personal_externo >= (0)::numeric))),
-    CONSTRAINT tareas_estado_check CHECK (((estado)::text = ANY ((ARRAY['pendiente'::character varying, 'en-proceso'::character varying, 'demorada'::character varying, 'cancelada'::character varying, 'finalizada'::character varying, 'aprobada'::character varying])::text[]))),
+    CONSTRAINT tareas_estado_check CHECK (((estado)::text = ANY ((ARRAY['pendiente'::character varying, 'en-proceso'::character varying, 'demorada'::character varying, 'cancelada'::character varying, 'finalizada'::character varying, 'aprobada'::character varying, 'rechazada'::character varying])::text[]))),
     CONSTRAINT tareas_fechas_coherentes CHECK (((fecha_inicio IS NULL) OR (fecha_fin IS NULL) OR (fecha_fin >= fecha_inicio))),
     CONSTRAINT tareas_origen_distinto CHECK (((id_tarea_origen IS NULL) OR (id_tarea_origen <> id_tarea))),
     CONSTRAINT tareas_prioridad_check CHECK (((prioridad)::text = ANY ((ARRAY['baja'::character varying, 'media'::character varying, 'alta'::character varying])::text[]))),
@@ -450,14 +416,14 @@ COPY public.categorias (id_categoria, nombre) FROM stdin;
 -- Data for Name: compras; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.compras (id_compra, id_tarea, monto, detalle, categoria, fecha, factura, fuente_financiamiento) FROM stdin;
-1	126	12450.00	Cerradura de embutir y juego de bisagras.	materiales	2025-06-25 08:30:00-03	\N	colegio
-2	127	12500.00	Luminaria LED de emergencia 20W.	materiales	2025-06-24 09:30:00-03	\N	colegio
-3	124	8900.00	Pintura exterior + rodillo.	materiales	2025-06-24 12:00:00-03	\N	colegio
-4	121	4300.00	Toma Schuko + cable.	materiales	2025-06-22 11:00:00-03	\N	colegio
-5	125	15000.00	Visita técnica de ClimaSur para diagnóstico.	servicios	2025-06-25 10:00:00-03	\N	colegio
-7	134	6500.00	Bolsas de residuos y guantes.	materiales	2025-06-25 17:10:00-03	\N	colegio
-6	135	25000.00	Sellador, látex y pinceles.	materiales	2025-06-26 13:30:00-03	\N	colegio
+COPY public.compras (id_compra, id_tarea, monto, detalle, categoria, fecha, factura) FROM stdin;
+1	126	12450.00	Cerradura de embutir y juego de bisagras.	materiales	2025-06-25 08:30:00-03	\N
+2	127	12500.00	Luminaria LED de emergencia 20W.	materiales	2025-06-24 09:30:00-03	\N
+3	124	8900.00	Pintura exterior + rodillo.	materiales	2025-06-24 12:00:00-03	\N
+4	121	4300.00	Toma Schuko + cable.	materiales	2025-06-22 11:00:00-03	\N
+5	125	15000.00	Visita técnica de ClimaSur para diagnóstico.	servicios	2025-06-25 10:00:00-03	\N
+6	133	25000.00	Sellador, látex y pinceles.	materiales	2025-06-26 13:30:00-03	\N
+7	134	6500.00	Bolsas de residuos y guantes.	materiales	2025-06-25 17:10:00-03	\N
 \.
 
 
@@ -501,31 +467,27 @@ COPY public.historial (id_historial, id_tarea, estado, motivo, id_usuario, fecha
 13	123	pendiente	Tarea creada a partir del requerimiento REQ-0337	6	2025-06-23 17:40:00-03
 14	123	en-proceso	Pedro Ruiz comenzó la revisión de la caldera.	10	2025-06-24 09:00:00-03
 15	123	finalizada	Tarea finalizada. Pendiente de evaluación del Directivo.	10	2025-06-24 15:00:00-03
-16	121	pendiente	Tarea creada a partir del requerimiento REQ-0335	6	2025-06-22 10:05:00-03
-17	121	en-proceso	Juan Torres inició el reemplazo de la toma.	13	2025-06-22 11:30:00-03
-18	121	finalizada	Tarea finalizada. Pendiente de evaluación del Directivo.	13	2025-06-22 16:30:00-03
-19	121	aprobada	El Directivo aprobó la tarea. Trabajo conforme.	4	2025-06-23 09:15:00-03
-20	131	pendiente	Tarea creada a partir del requerimiento REQ-0345	6	2025-06-26 10:40:00-03
-21	131	en-proceso	Ana Torres inició el recambio de tubos.	1	2025-06-26 11:30:00-03
-22	133	pendiente	Tarea creada a partir del requerimiento REQ-0347	6	2025-06-26 12:00:00-03
-23	133	en-proceso	Alejandro Ponce inició los trabajos de pintura.	6	2025-06-26 13:00:00-03
-24	134	pendiente	Tarea creada a partir del requerimiento REQ-0348	6	2025-06-25 16:30:00-03
-25	134	en-proceso	Laura Fernández inició la limpieza.	7	2025-06-25 17:00:00-03
-26	134	finalizada	Limpieza completa.	7	2025-06-25 18:30:00-03
-27	134	aprobada	El Directivo aprobó la tarea.	5	2025-06-26 09:00:00-03
-28	133	cancelada	no vino el pintor	6	2026-11-15 18:17:31.106957-03
-29	135	pendiente	Tarea creada a partir del requerimiento REQ-0347	6	2025-06-26 12:00:00-03
-30	135	en-proceso	Alejandro Ponce inició los trabajos de pintura.	6	2025-06-26 13:00:00-03
-31	135	cancelada	no vino el pintor	6	2026-11-15 18:17:31.106957-03
-32	135	pendiente	Tarea generada automáticamente por la cancelación de T-0133.	6	2026-11-15 18:17:31.106957-03
-33	136	en-proceso	Tarea creada y asignada; se inició automáticamente.	6	2026-11-15 18:30:23.254008-03
-34	136	finalizada	Tarea finalizada. Pendiente de evaluación del Directivo.	1	2026-11-15 19:18:26.639321-03
-35	131	finalizada	Tarea finalizada. Pendiente de evaluación del Directivo.	1	2026-11-15 20:03:01.666651-03
-36	128	demorada	porque necesita aprobacion externa	6	2026-11-15 20:14:36.500133-03
-37	128	en-proceso	Se retomó la tarea.	6	2026-11-15 20:16:48.659117-03
-38	124	en-proceso	Se retomó la tarea.	6	2026-11-15 20:17:45.981527-03
-39	135	en-proceso	Se inició la tarea.	6	2026-11-15 20:18:10.6823-03
-40	135	demorada	Esperando aprobacion de Materiales	6	2026-11-15 20:18:46.96671-03
+16	122	pendiente	Tarea creada a partir del requerimiento REQ-0336	6	2025-06-23 12:18:00-03
+17	122	en-proceso	Se asignó al gasista para la revisión.	6	2025-06-23 14:00:00-03
+18	122	cancelada	Se canceló porque el gasista no pudo venir.	6	2025-06-23 18:00:00-03
+19	129	pendiente	Tarea generada automáticamente por cancelación de T-0122.	6	2025-06-24 09:00:00-03
+20	121	pendiente	Tarea creada a partir del requerimiento REQ-0335	6	2025-06-22 10:05:00-03
+21	121	en-proceso	Juan Torres inició el reemplazo de la toma.	13	2025-06-22 11:30:00-03
+22	121	finalizada	Tarea finalizada. Pendiente de evaluación del Directivo.	13	2025-06-22 16:30:00-03
+23	121	aprobada	El Directivo aprobó la tarea. Trabajo conforme.	4	2025-06-23 09:15:00-03
+24	130	pendiente	Tarea creada a partir del requerimiento REQ-0337	6	2025-06-24 16:00:00-03
+25	130	en-proceso	Se retomó la tarea para corregir observaciones.	10	2025-06-24 16:30:00-03
+26	130	finalizada	Se volvió a finalizar la tarea.	10	2025-06-25 09:30:00-03
+27	130	rechazada	El Directivo rechazó: faltó pintar el marco.	4	2025-06-25 10:00:00-03
+28	131	pendiente	Tarea creada a partir del requerimiento REQ-0345	6	2025-06-26 10:40:00-03
+29	131	en-proceso	Ana Torres inició el recambio de tubos.	1	2025-06-26 11:30:00-03
+30	132	pendiente	Tarea creada a partir del requerimiento REQ-0346	6	2025-06-26 11:05:00-03
+31	133	pendiente	Tarea creada a partir del requerimiento REQ-0347	6	2025-06-26 12:00:00-03
+32	133	en-proceso	Alejandro Ponce inició los trabajos de pintura.	6	2025-06-26 13:00:00-03
+33	134	pendiente	Tarea creada a partir del requerimiento REQ-0348	6	2025-06-25 16:30:00-03
+34	134	en-proceso	Laura Fernández inició la limpieza.	7	2025-06-25 17:00:00-03
+35	134	finalizada	Limpieza completa.	7	2025-06-25 18:30:00-03
+36	134	aprobada	El Directivo aprobó la tarea.	5	2025-06-26 09:00:00-03
 \.
 
 
@@ -538,21 +500,14 @@ COPY public.notificaciones (id_notificacion, id_usuario, id_requerimiento, id_ta
 2	6	341	\N	requerimiento	Nuevo requerimiento	Se emitió el requerimiento REQ-0341: Luz de emergencia sin funcionar.	t	2025-06-24 08:47:00-03
 3	4	\N	123	tarea-finalizada	Tarea finalizada	La tarea T-0123: Revisión de caldera pasó a finalizada y espera tu aprobación.	f	2025-06-24 15:00:00-03
 4	6	\N	121	tarea-aprobada	Tarea aprobada	El Directivo aprobó la tarea T-0121: Reemplazo de toma eléctrica.	f	2025-06-23 09:15:00-03
-5	5	\N	127	tarea-finalizada	Tarea finalizada	La tarea T-0127: Cambio de luminaria pasó a finalizada.	f	2025-06-24 14:00:00-03
-6	6	335	\N	requerimiento	Nuevo requerimiento	Se emitió el requerimiento REQ-0335: Toma eléctrica suelta.	t	2025-06-22 10:05:00-03
-7	6	343	\N	requerimiento	Nuevo requerimiento	Se emitió el requerimiento REQ-0343: Grieta en aula 15.	f	2025-06-26 08:10:00-03
-8	5	\N	134	tarea-finalizada	Tarea finalizada	La tarea T-0134: Limpieza patio central pasó a finalizada.	t	2025-06-25 18:30:00-03
-9	4	\N	134	tarea-aprobada	Tarea aprobada	El Directivo aprobó la tarea T-0134: Limpieza patio central.	f	2025-06-26 09:00:00-03
-10	4	343	136	tarea-finalizada	Tarea finalizada	La tarea T-0136: Albañilería pasó a finalizada y espera tu aprobación.	f	2026-11-15 19:18:26.639321-03
-11	5	343	136	tarea-finalizada	Tarea finalizada	La tarea T-0136: Albañilería pasó a finalizada y espera tu aprobación.	f	2026-11-15 19:18:26.639321-03
-12	9	343	136	tarea-finalizada	Tarea finalizada	La tarea T-0136: Albañilería pasó a finalizada y espera tu aprobación.	f	2026-11-15 19:18:26.639321-03
-13	11	343	136	tarea-finalizada	Tarea finalizada	La tarea T-0136: Albañilería pasó a finalizada y espera tu aprobación.	f	2026-11-15 19:18:26.639321-03
-14	16	343	136	tarea-finalizada	Tarea finalizada	La tarea T-0136: Albañilería pasó a finalizada y espera tu aprobación.	f	2026-11-15 19:18:26.639321-03
-15	4	345	131	tarea-finalizada	Tarea finalizada	La tarea T-0131: Electricidad pasó a finalizada y espera tu aprobación.	f	2026-11-15 20:03:01.666651-03
-16	5	345	131	tarea-finalizada	Tarea finalizada	La tarea T-0131: Electricidad pasó a finalizada y espera tu aprobación.	f	2026-11-15 20:03:01.666651-03
-17	9	345	131	tarea-finalizada	Tarea finalizada	La tarea T-0131: Electricidad pasó a finalizada y espera tu aprobación.	f	2026-11-15 20:03:01.666651-03
-18	11	345	131	tarea-finalizada	Tarea finalizada	La tarea T-0131: Electricidad pasó a finalizada y espera tu aprobación.	f	2026-11-15 20:03:01.666651-03
-19	16	345	131	tarea-finalizada	Tarea finalizada	La tarea T-0131: Electricidad pasó a finalizada y espera tu aprobación.	f	2026-11-15 20:03:01.666651-03
+5	6	\N	122	tarea-cancelada	Tarea cancelada	La tarea T-0122 fue cancelada. Motivo: el gasista no pudo venir.	t	2025-06-23 18:00:00-03
+6	5	\N	127	tarea-finalizada	Tarea finalizada	La tarea T-0127: Cambio de luminaria pasó a finalizada.	f	2025-06-24 14:00:00-03
+7	6	335	\N	requerimiento	Nuevo requerimiento	Se emitió el requerimiento REQ-0335: Toma eléctrica suelta.	t	2025-06-22 10:05:00-03
+8	6	343	\N	requerimiento	Nuevo requerimiento	Se emitió el requerimiento REQ-0343: Grieta en aula 15.	f	2025-06-26 08:10:00-03
+9	6	344	\N	requerimiento	Nuevo requerimiento	Se emitió el requerimiento REQ-0344: Cerradura portón gimnasio trabada.	f	2025-06-26 09:25:00-03
+10	4	\N	130	tarea-rechazada	Tarea rechazada	La tarea T-0130: Reparación calefacción aula 8 fue rechazada. Vuelve a en proceso.	t	2025-06-25 10:00:00-03
+11	5	\N	134	tarea-finalizada	Tarea finalizada	La tarea T-0134: Limpieza patio central pasó a finalizada.	t	2025-06-25 18:30:00-03
+12	4	\N	134	tarea-aprobada	Tarea aprobada	El Directivo aprobó la tarea T-0134: Limpieza patio central.	f	2025-06-26 09:00:00-03
 \.
 
 
@@ -580,20 +535,21 @@ COPY public.personal_externo (id_personal, nombre, apellido, dni, email, telefon
 -- Data for Name: requerimientos; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.requerimientos (id_requerimiento, id_categoria, categoria_nombre, descripcion, id_sector, sector_nombre, imagen, id_usuario, estado, activo, fecha_emision) FROM stdin;
-341	2	Electricidad	La luz de emergencia del pasillo principal no enciende. Se verificó que no es problema del tubo LED.	9	Pasillo principal	https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800	8	asignado	t	2025-06-24 08:47:00-03
-340	4	Carpintería	La puerta del aula 12 está dañada y no cierra correctamente. Se necesita revisar la cerradura y ajustar la bisagra.	2	Aula 12	https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800	7	asignado	t	2025-06-24 16:30:00-03
-339	6	Climatización	El aire acondicionado del laboratorio de informática no enfría. Hace ruido extraño al encender.	7	Laboratorio de informática	\N	9	asignado	t	2025-06-24 14:22:00-03
-337	6	Climatización	La calefacción del aula 8 no prende. Se verificó que el termostato está en buen estado.	1	Aula 8	\N	10	asignado	t	2025-06-23 17:40:00-03
-335	2	Electricidad	La toma del laboratorio 3 está suelta y hace mal contacto. Puede ser peligroso.	6	Laboratorio 3	https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=800	12	resuelto	t	2025-06-22 10:05:00-03
-346	1	Plomería	Pérdida de agua en el baño del pabellón B. El inodoro no para de cargar.	15	Pabellón B - Baño	\N	2	asignado	t	2025-06-26 11:05:00-03
-348	7	Limpieza	Basura acumulada en el patio central luego del acto del 25 de mayo.	5	Patio central	\N	7	resuelto	t	2025-06-25 16:30:00-03
-343	5	Albañilería	Grieta en la pared del aula 15, lado ventana. Se agranda con el tiempo.	3	Aula 15	\N	14	asignado	t	2025-06-26 08:10:00-03
-345	2	Electricidad	Fluorescentes del salón de actos parpadean. Son 4 tubos.	19	Salón de actos	\N	1	asignado	t	2025-06-26 10:40:00-03
-342	1	Plomería	Se observa filtración de agua en el techo del pabellón B, principalmente en la zona del pasillo. En días de lluvia el agua se filtra hacia el interior y afecta las luminarias y el cielorraso.	13	Pabellón B (Aula 12 - Pasillo)	https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800	7	asignado	t	2025-06-25 09:12:00-03
-338	3	Pintura	Se observa pintura descascarada en la pared del patio. Necesita lijado y repintado.	5	Patio central	https://images.unsplash.com/photo-1581858726788-75bc0f6a952d?w=800	1	asignado	t	2025-06-24 11:15:00-03
-347	3	Pintura	Repintar la capilla: humedad en la pared del altar.	18	Capilla	\N	13	asignado	t	2025-06-26 12:00:00-03
-336	8	Gas	Se siente olor a gas en la cocina del pabellón C. Se recomienda revisar las conexiones de la cocina.	14	Pabellón C - Cocina	https://images.unsplash.com/photo-1556909212-d5b604d0c90d?w=800	11	pendiente	f	2025-06-23 12:18:00-03
+COPY public.requerimientos (id_requerimiento, id_categoria, descripcion, id_sector, imagen, id_usuario, estado, activo, fecha_emision) FROM stdin;
+342	1	Se observa filtración de agua en el techo del pabellón B, principalmente en la zona del pasillo. En días de lluvia el agua se filtra hacia el interior y afecta las luminarias y el cielorraso.	13	https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800	7	asignado	t	2025-06-25 09:12:00-03
+341	2	La luz de emergencia del pasillo principal no enciende. Se verificó que no es problema del tubo LED.	9	https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800	8	asignado	t	2025-06-24 08:47:00-03
+340	4	La puerta del aula 12 está dañada y no cierra correctamente. Se necesita revisar la cerradura y ajustar la bisagra.	2	https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800	7	asignado	t	2025-06-24 16:30:00-03
+339	6	El aire acondicionado del laboratorio de informática no enfría. Hace ruido extraño al encender.	7	\N	9	asignado	t	2025-06-24 14:22:00-03
+338	3	Se observa pintura descascarada en la pared del patio. Necesita lijado y repintado.	5	https://images.unsplash.com/photo-1581858726788-75bc0f6a952d?w=800	1	asignado	t	2025-06-24 11:15:00-03
+337	6	La calefacción del aula 8 no prende. Se verificó que el termostato está en buen estado.	1	\N	10	asignado	t	2025-06-23 17:40:00-03
+336	8	Se siente olor a gas en la cocina del pabellón C. Se recomienda revisar las conexiones de la cocina.	14	https://images.unsplash.com/photo-1556909212-d5b604d0c90d?w=800	11	pendiente	t	2025-06-23 12:18:00-03
+335	2	La toma del laboratorio 3 está suelta y hace mal contacto. Puede ser peligroso.	6	https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=800	12	resuelto	t	2025-06-22 10:05:00-03
+343	5	Grieta en la pared del aula 15, lado ventana. Se agranda con el tiempo.	3	\N	14	pendiente	t	2025-06-26 08:10:00-03
+344	9	La cerradura del portón del gimnasio está trabada. No se puede abrir desde afuera.	11	\N	15	pendiente	t	2025-06-26 09:25:00-03
+345	2	Fluorescentes del salón de actos parpadean. Son 4 tubos.	19	\N	1	asignado	t	2025-06-26 10:40:00-03
+346	1	Pérdida de agua en el baño del pabellón B. El inodoro no para de cargar.	15	\N	2	asignado	t	2025-06-26 11:05:00-03
+347	3	Repintar la capilla: humedad en la pared del altar.	18	\N	13	asignado	t	2025-06-26 12:00:00-03
+348	7	Basura acumulada en el patio central luego del acto del 25 de mayo.	5	\N	7	resuelto	t	2025-06-25 16:30:00-03
 \.
 
 
@@ -640,19 +596,21 @@ COPY public.sectores (id_sector, nombre) FROM stdin;
 -- Data for Name: tareas; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.tareas (id_tarea, id_requerimiento, prioridad, estado, fecha_creacion, fecha_inicio, fecha_fin, observaciones, id_directivo, id_responsable, id_personal_externo, id_tarea_origen, costo_personal_externo, activo) FROM stdin;
-127	341	media	finalizada	2025-06-24 08:47:00-03	2025-06-24 10:15:00-03	2025-06-24 14:00:00-03	Cambio de luminaria completo.	\N	\N	1	\N	40000.00	t
-126	340	alta	en-proceso	2025-06-24 16:30:00-03	2025-06-25 08:00:00-03	\N	Se retiró la cerradura rota para su reemplazo.	\N	13	\N	\N	\N	t
-125	339	media	en-proceso	2025-06-24 14:22:00-03	2025-06-25 09:00:00-03	\N	ClimaSur diagnosticó y pidió repuesto.	\N	\N	9	\N	35000.00	t
-123	337	alta	finalizada	2025-06-23 17:40:00-03	2025-06-24 09:00:00-03	2025-06-24 15:00:00-03	Revisión de caldera completa.	\N	10	\N	\N	\N	t
-121	335	media	aprobada	2025-06-22 10:05:00-03	2025-06-22 11:30:00-03	2025-06-22 16:30:00-03	Trabajo conforme.	4	13	\N	\N	\N	t
-134	348	baja	aprobada	2025-06-25 16:30:00-03	2025-06-25 17:00:00-03	2025-06-25 18:30:00-03	Limpieza completa.	5	7	\N	\N	\N	t
-133	347	baja	cancelada	2025-06-26 12:00:00-03	2025-06-26 13:00:00-03	2026-11-15 18:17:31.11-03	Se lijó la pared y se aplicó sellador.	\N	\N	10	\N	25000.00	f
-136	343	media	finalizada	2026-11-15 18:30:23.254008-03	2026-11-15 18:30:23.257-03	2026-11-15 19:18:26.641-03	\N	\N	1	\N	\N	\N	t
-131	345	media	finalizada	2025-06-26 10:40:00-03	2025-06-26 11:30:00-03	2026-11-15 20:03:01.67-03	Se están cambiando los tubos.	\N	1	\N	\N	\N	t
-128	342	alta	en-proceso	2025-06-25 09:12:00-03	2025-06-25 10:30:00-03	\N	Se necesita cerrar el paso de agua antes de reparar.	\N	8	\N	\N	\N	t
-124	338	baja	en-proceso	2025-06-24 11:15:00-03	2025-06-24 13:00:00-03	\N	Se demora por lluvia. Se retomará cuando el clima mejore.	\N	7	\N	\N	\N	t
-135	347	baja	demorada	2026-11-15 18:17:31.106957-03	2026-11-15 20:18:10.685-03	\N	Se lijó la pared y se aplicó sellador.	\N	18	\N	133	\N	t
+COPY public.tareas (id_tarea, id_requerimiento, prioridad, estado, fecha_creacion, fecha_inicio, fecha_fin, observaciones, id_directivo, id_responsable, id_personal_externo, id_tarea_origen, costo_personal_externo) FROM stdin;
+128	342	alta	en-proceso	2025-06-25 09:12:00-03	2025-06-25 10:30:00-03	\N	Se necesita cerrar el paso de agua antes de reparar.	\N	8	\N	\N	\N
+127	341	media	finalizada	2025-06-24 08:47:00-03	2025-06-24 10:15:00-03	2025-06-24 14:00:00-03	Cambio de luminaria completo.	\N	\N	1	\N	40000.00
+126	340	alta	en-proceso	2025-06-24 16:30:00-03	2025-06-25 08:00:00-03	\N	Se retiró la cerradura rota para su reemplazo.	\N	13	\N	\N	\N
+125	339	media	en-proceso	2025-06-24 14:22:00-03	2025-06-25 09:00:00-03	\N	ClimaSur diagnosticó y pidió repuesto.	\N	\N	9	\N	35000.00
+124	338	baja	demorada	2025-06-24 11:15:00-03	2025-06-24 13:00:00-03	\N	Se demora por lluvia. Se retomará cuando el clima mejore.	\N	7	\N	\N	\N
+123	337	alta	finalizada	2025-06-23 17:40:00-03	2025-06-24 09:00:00-03	2025-06-24 15:00:00-03	Revisión de caldera completa.	\N	10	\N	\N	\N
+122	336	alta	cancelada	2025-06-23 12:18:00-03	2025-06-23 14:00:00-03	2025-06-23 18:00:00-03	Se canceló porque el gasista no pudo venir.	\N	\N	7	\N	\N
+129	336	alta	pendiente	2025-06-24 09:00:00-03	\N	\N	Tarea generada por cancelación de T-0122.	\N	\N	\N	122	\N
+121	335	media	aprobada	2025-06-22 10:05:00-03	2025-06-22 11:30:00-03	2025-06-22 16:30:00-03	Trabajo conforme.	4	13	\N	\N	\N
+130	337	alta	rechazada	2025-06-24 16:00:00-03	2025-06-24 16:30:00-03	2025-06-25 10:00:00-03	El Directivo rechazó: faltó pintar el marco.	4	10	\N	\N	\N
+131	345	media	en-proceso	2025-06-26 10:40:00-03	2025-06-26 11:30:00-03	\N	Se están cambiando los tubos.	\N	1	\N	\N	\N
+132	346	alta	pendiente	2025-06-26 11:05:00-03	\N	\N	A la espera de asignación.	\N	\N	\N	\N	\N
+133	347	baja	en-proceso	2025-06-26 12:00:00-03	2025-06-26 13:00:00-03	\N	Se lijó la pared y se aplicó sellador.	\N	\N	10	\N	25000.00
+134	348	baja	aprobada	2025-06-25 16:30:00-03	2025-06-25 17:00:00-03	2025-06-25 18:30:00-03	Limpieza completa.	5	7	\N	\N	\N
 \.
 
 
@@ -678,7 +636,6 @@ COPY public.usuarios (id_usuario, nombre_usuario, nombre, apellido, dni, email, 
 16	srodriguez	Silvia	Rodríguez	25678901	srodriguez@donbosco.org.ar	$2b$10$MdAWYQmY/Ad3ejF6JByxHORzZfhywigohgRnzU0r17CECKem0UBTm	3	\N	2	\N	t	2025-02-20 08:00:00-03
 6	jrodriguez	Juan	Rodríguez	22345678	jrodriguez@donbosco.org.ar	$2b$10$MdAWYQmY/Ad3ejF6JByxHORzZfhywigohgRnzU0r17CECKem0UBTm	2	\N	\N	\N	t	2025-01-10 08:00:00-03
 17	mbenitez	Marcos	Benítez	26789012	mbenitez@donbosco.org.ar	$2b$10$MdAWYQmY/Ad3ejF6JByxHORzZfhywigohgRnzU0r17CECKem0UBTm	2	\N	\N	\N	t	2025-03-01 08:00:00-03
-18	cnaranjo	Candela	Naranjo	45563392	candenaranjo05@gmail.com	$2b$10$CbB.sGWEtRWZ0CR9ZzuR4Oz.rc2kU4VOfbO5gu45oHLlLX25BX0CS	1	02664863827	\N	\N	t	2026-11-15 19:50:49.166033-03
 \.
 
 
@@ -714,14 +671,14 @@ SELECT pg_catalog.setval('public.especialidades_id_especialidad_seq', 12, true);
 -- Name: historial_id_historial_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.historial_id_historial_seq', 40, true);
+SELECT pg_catalog.setval('public.historial_id_historial_seq', 36, true);
 
 
 --
 -- Name: notificaciones_id_notificacion_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.notificaciones_id_notificacion_seq', 19, true);
+SELECT pg_catalog.setval('public.notificaciones_id_notificacion_seq', 12, true);
 
 
 --
@@ -756,14 +713,14 @@ SELECT pg_catalog.setval('public.sectores_id_sector_seq', 20, true);
 -- Name: tareas_id_tarea_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.tareas_id_tarea_seq', 136, true);
+SELECT pg_catalog.setval('public.tareas_id_tarea_seq', 134, true);
 
 
 --
 -- Name: usuarios_id_usuario_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.usuarios_id_usuario_seq', 18, true);
+SELECT pg_catalog.setval('public.usuarios_id_usuario_seq', 17, true);
 
 
 --
@@ -804,14 +761,6 @@ ALTER TABLE ONLY public.categorias
 
 ALTER TABLE ONLY public.compras
     ADD CONSTRAINT compras_pkey PRIMARY KEY (id_compra);
-
-
---
--- Name: compras compras_una_por_tarea; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.compras
-    ADD CONSTRAINT compras_una_por_tarea UNIQUE (id_tarea);
 
 
 --
@@ -1072,7 +1021,7 @@ CREATE INDEX tareas_responsable_idx ON public.tareas USING btree (id_responsable
 -- Name: tareas_una_viva_por_requerimiento_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX tareas_una_viva_por_requerimiento_idx ON public.tareas USING btree (id_requerimiento) WHERE ((estado)::text <> ALL ((ARRAY['cancelada'::character varying, 'aprobada'::character varying])::text[]));
+CREATE UNIQUE INDEX tareas_una_viva_por_requerimiento_idx ON public.tareas USING btree (id_requerimiento) WHERE ((estado)::text <> ALL ((ARRAY['cancelada'::character varying, 'aprobada'::character varying, 'rechazada'::character varying])::text[]));
 
 
 --
@@ -1094,13 +1043,6 @@ CREATE UNIQUE INDEX usuarios_nombre_usuario_lower_idx ON public.usuarios USING b
 --
 
 CREATE INDEX usuarios_rol_idx ON public.usuarios USING btree (id_rol);
-
-
---
--- Name: requerimientos requerimientos_copiar_nombres_trg; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER requerimientos_copiar_nombres_trg BEFORE INSERT ON public.requerimientos FOR EACH ROW EXECUTE FUNCTION public.requerimientos_copiar_nombres();
 
 
 --
@@ -1164,7 +1106,7 @@ ALTER TABLE ONLY public.personal_externo
 --
 
 ALTER TABLE ONLY public.requerimientos
-    ADD CONSTRAINT requerimientos_id_categoria_fkey FOREIGN KEY (id_categoria) REFERENCES public.categorias(id_categoria) ON DELETE SET NULL;
+    ADD CONSTRAINT requerimientos_id_categoria_fkey FOREIGN KEY (id_categoria) REFERENCES public.categorias(id_categoria);
 
 
 --
@@ -1172,7 +1114,7 @@ ALTER TABLE ONLY public.requerimientos
 --
 
 ALTER TABLE ONLY public.requerimientos
-    ADD CONSTRAINT requerimientos_id_sector_fkey FOREIGN KEY (id_sector) REFERENCES public.sectores(id_sector) ON DELETE SET NULL;
+    ADD CONSTRAINT requerimientos_id_sector_fkey FOREIGN KEY (id_sector) REFERENCES public.sectores(id_sector);
 
 
 --
@@ -1240,15 +1182,8 @@ ALTER TABLE ONLY public.usuarios
 
 
 --
--- Name: SCHEMA public; Type: ACL; Schema: -; Owner: -
---
-
-REVOKE USAGE ON SCHEMA public FROM PUBLIC;
-
-
---
 -- PostgreSQL database dump complete
 --
 
-\unrestrict QjGefx9npugOyJvZzNKcwlSFr50XGXt9v8XmIWd2SYrrYCf96NzmxwaqZoFryJI
+\unrestrict wXpSSch5N8cpsgJmV7RQCQ1X8eUN9pdLaTcf56Ep1sL3TJY6S9L6G714d42IZXE
 
