@@ -35,7 +35,7 @@ app.use('/api/v1/sectores', sectoresRouter);
 
 // Las rutas anidadas de tareas se montan antes del router de tareas.
 app.use('/api/v1/tareas/:id/compras', comprasDeTareaRouter);
-app.use('/api/v1/compras/:id', comprasRouter);
+app.use('/api/v1/compras', comprasRouter);
 app.use('/api/v1/tareas/:id/historial', historialRoutes);
 app.use('/api/v1/tareas', tareasRoutes);
 
